@@ -16,9 +16,9 @@ services:
       - key: WALLET_INITIAL_BALANCE_MON
         value: "0.2"
       - key: MON_REWARD_PER_UNIT
-        value: "0.001"
+        value: "0.0001"
       - key: PASSIVE_MON_DRIP_PER_ACTION
-        value: "0.001"
+        value: "0.0001"
       - key: FAUCET_FLOOR_MON
         value: "0.05"
       - key: FAUCET_TOPUP_TO_MON
