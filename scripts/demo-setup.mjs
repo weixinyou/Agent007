@@ -61,6 +61,8 @@ async function main() {
     },
     10
   );
+  await sleep(1500);
+  await assertHealthy(3001);
 
   writeFileSync(
     META_PATH,
@@ -114,6 +116,13 @@ async function waitForHealth(port, timeoutMs) {
     await sleep(500);
   }
   throw new Error('Timed out waiting for demo server health check');
+}
+
+async function assertHealthy(port) {
+  const response = await fetch(`http://127.0.0.1:${port}/health`);
+  if (!response.ok) {
+    throw new Error(`Demo server health check failed after setup (HTTP ${response.status})`);
+  }
 }
 
 async function postJson(url, payload) {
