@@ -1,5 +1,4 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { AgentRegistry } from "../agents/agentRegistry.js";
 import { AiClient } from "../agents/aiClient.js";
 import { AiEnabledAgentService } from "../agents/aiEnabledAgentService.js";
@@ -14,9 +13,7 @@ import { EntryService } from "../services/entryService.js";
 import { SignatureAuthService } from "../services/signatureAuthService.js";
 import { createAppServer } from "./app.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const root = path.resolve(__dirname, "../../");
+const root = process.cwd();
 
 const seedPath = path.join(root, "data/seeds/world.seed.json");
 const jsonStatePath = path.join(root, "data/state/world.json");
