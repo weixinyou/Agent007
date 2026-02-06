@@ -49,6 +49,20 @@ Demo helpers:
 If `OPENAI_API_KEY` is exported before `demo:setup`, AI-designated agents use live OpenAI decisions.
 If key/quota is unavailable, they automatically run deterministic fallback decisions.
 
+## Deploy (Render)
+This repo includes `render.yaml` for one-click deployment.
+
+Steps:
+1. Push this repo to GitHub.
+2. In Render: `New +` -> `Blueprint` -> select this repo.
+3. Deploy using defaults from `render.yaml`.
+4. (Optional) add `OPENAI_API_KEY` in Render env vars for live AI decisions.
+
+After deploy, use:
+- `/dashboard` for live UI
+- `/health` for service check
+- `/protocol` for API contract
+
 API defaults to `http://localhost:3000` with:
 - `GET /health`
 - `GET /protocol`

@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: agent007-world-model
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PAYMENT_BACKEND
+        value: wallet
+      - key: ENTRY_FEE_MON
+        value: "0.1"
+      - key: WALLET_INITIAL_BALANCE_MON
+        value: "0.2"
+      - key: AUTO_AGENT_ENABLED
+        value: "true"
+      - key: AUTO_AGENT_INTERVAL_MS
+        value: "1000"
+      - key: AUTO_AGENT_ACTIONS_PER_CYCLE
+        value: "1"
+      - key: AUTO_AGENT_MIN_ACTION_DELAY_MS
+        value: "2000"
+      - key: AUTO_AGENT_MAX_ACTION_DELAY_MS
+        value: "6000"
+      - key: AGENT_BRAIN_MODE
+        value: mixed
+      - key: AI_AGENT_IDS
+        value: ai_demo_1,ai_demo_2,ai_demo_3
+      - key: AI_AGENT_MIN_CALL_INTERVAL_MS
+        value: "300000"
