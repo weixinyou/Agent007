@@ -87,6 +87,12 @@ export function createAppServer(deps: AppServerDeps): http.Server {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
 
+    if (req.method === "GET" && pathname === "/") {
+      res.writeHead(302, { Location: "/dashboard" });
+      res.end();
+      return;
+    }
+
     if (req.method === "GET" && pathname === "/health") {
       send(res, 200, {
         ok: true,
