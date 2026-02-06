@@ -1,0 +1,17 @@
+node_modules/
+.npm-cache/
+dist/
+artifacts/
+cache/
+logs/
+data/state/*.lock
+data/state/world.json
+data/state/*.db
+data/snapshots/*.json
+examples/generated-wallets*.json
+examples/funding-results.json
+examples/payments-results.json
+*.log
+.DS_Store
+
+data/state/*.json

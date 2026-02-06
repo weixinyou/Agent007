@@ -1,0 +1,20 @@
+{
+  "tick": 0,
+  "agents": {},
+  "wallets": {
+    "demo_wallet": {
+      "address": "demo_wallet",
+      "monBalance": 25
+    }
+  },
+  "events": [],
+  "processedPaymentTxHashes": [],
+  "governance": {
+    "activePolicy": "neutral",
+    "votes": {
+      "neutral": 0,
+      "cooperative": 0,
+      "aggressive": 0
+    }
+  }
+}
