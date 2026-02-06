@@ -3,7 +3,7 @@ services:
     name: agent007-world-model
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
@@ -29,5 +29,9 @@ services:
         value: mixed
       - key: AI_AGENT_IDS
         value: ai_demo_1,ai_demo_2,ai_demo_3
+      - key: BOOTSTRAP_DEFAULT_AGENTS
+        value: "true"
+      - key: BOOTSTRAP_AGENT_SPECS
+        value: ai_demo_1:wallet_ai_demo_1,ai_demo_2:wallet_ai_demo_2,ai_demo_3:wallet_ai_demo_3
       - key: AI_AGENT_MIN_CALL_INTERVAL_MS
         value: "300000"

@@ -22,6 +22,7 @@ const snapshotDir = path.join(root, "data/snapshots");
 const storeMode = (process.env.WORLD_STORE ?? "json").toLowerCase();
 const walletService = new WalletService();
 const payment = createPaymentGateway(walletService);
+const entryService = new EntryService(payment.gateway, new AgentRegistry());
 
 const store = createWorldStore(jsonStatePath, sqliteStatePath);
 store.initFromSeed(seedPath);
@@ -30,7 +31,7 @@ const actionEngine = new ActionEngine();
 const server = createAppServer({
   store,
   snapshotStore: new SnapshotStore(snapshotDir),
-  entryService: new EntryService(payment.gateway, new AgentRegistry()),
+  entryService,
   actionEngine,
   authService: new AuthService(process.env.AGENT007_API_KEY),
   signatureAuthService: new SignatureAuthService(process.env.AGENT007_HMAC_SECRET),
@@ -148,6 +149,7 @@ server.listen(port, () => {
   for (const service of autonomousServices) {
     service.start();
   }
+  bootstrapDefaultAgents(entryService, actionEngine);
   console.log(`Agent007 API listening on http://localhost:${port} (brain mode: ${activeBrainMode})`);
 });
 
@@ -156,3 +158,66 @@ server.on("close", () => {
     service.stop();
   }
 });
+
+function bootstrapDefaultAgents(entryService: EntryService, actionEngine: ActionEngine): void {
+  const bootstrapEnabled = (process.env.BOOTSTRAP_DEFAULT_AGENTS ?? "false").toLowerCase() === "true";
+  if (!bootstrapEnabled) {
+    return;
+  }
+
+  const specs = parseBootstrapAgents();
+  if (specs.length === 0) {
+    return;
+  }
+
+  const results = store.update((state) =>
+    specs.map((spec) =>
+      entryService.enter(state, {
+        agentId: spec.agentId,
+        walletAddress: spec.walletAddress
+      })
+    )
+  );
+
+  // Prime governance panel so reviewers immediately see non-zero policy data.
+  store.update((state) => {
+    const totalVotes =
+      (state.governance.votes.neutral ?? 0) +
+      (state.governance.votes.cooperative ?? 0) +
+      (state.governance.votes.aggressive ?? 0);
+    if (totalVotes > 0) {
+      return;
+    }
+    const firstAgentId = specs[0]?.agentId;
+    if (!firstAgentId || !state.agents[firstAgentId]) {
+      return;
+    }
+    actionEngine.resolve(state, { agentId: firstAgentId, action: "vote", votePolicy: "neutral" });
+  });
+
+  const enteredCount = results.filter((result) => result.ok).length;
+  console.log(`Bootstrap default agents completed: ${enteredCount}/${specs.length} entries accepted`);
+}
+
+function parseBootstrapAgents(): Array<{ agentId: string; walletAddress: string }> {
+  const raw = process.env.BOOTSTRAP_AGENT_SPECS?.trim();
+  if (raw) {
+    return raw
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+      .map((entry) => {
+        const [agentIdRaw, walletAddressRaw] = entry.split(":");
+        const agentId = (agentIdRaw ?? "").trim();
+        const walletAddress = (walletAddressRaw ?? `wallet_${agentId}`).trim();
+        return { agentId, walletAddress };
+      })
+      .filter((entry) => entry.agentId.length > 0 && entry.walletAddress.length > 0);
+  }
+
+  return [
+    { agentId: "ai_demo_1", walletAddress: "wallet_ai_demo_1" },
+    { agentId: "ai_demo_2", walletAddress: "wallet_ai_demo_2" },
+    { agentId: "ai_demo_3", walletAddress: "wallet_ai_demo_3" }
+  ];
+}

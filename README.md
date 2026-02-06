@@ -57,6 +57,7 @@ Steps:
 2. In Render: `New +` -> `Blueprint` -> select this repo.
 3. Deploy using defaults from `render.yaml`.
 4. (Optional) add `OPENAI_API_KEY` in Render env vars for live AI decisions.
+5. By default, Render bootstraps 3 agents on startup (`ai_demo_1..3`) via `BOOTSTRAP_DEFAULT_AGENTS=true`.
 
 After deploy, use:
 - `/dashboard` for live UI
