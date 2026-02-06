@@ -27,6 +27,18 @@ const PASSIVE_MON_DRIP_PER_ACTION = (() => {
   return raw;
 })();
 
+const FAUCET_FLOOR_MON = (() => {
+  const raw = Number(process.env.FAUCET_FLOOR_MON ?? "0");
+  if (!Number.isFinite(raw) || raw < 0) return 0;
+  return raw;
+})();
+
+const FAUCET_TOPUP_TO_MON = (() => {
+  const raw = Number(process.env.FAUCET_TOPUP_TO_MON ?? "0");
+  if (!Number.isFinite(raw) || raw < 0) return 0;
+  return raw;
+})();
+
 export class ActionEngine {
   private readonly nextAllowedActionAtByAgent = new Map<string, number>();
 
@@ -50,10 +62,10 @@ export class ActionEngine {
     if (req.action === "rest") {
       agent.energy = Math.min(10, agent.energy + 3);
       state.tick += 1;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.events.push(
         createEvent(state.events.length + 1, state.tick, agent.id, "rest", "Agent recovered energy")
       );
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
       return { ok: true, message: "Rested successfully", tick: state.tick, energy: agent.energy, location: agent.location };
     }
@@ -67,7 +79,6 @@ export class ActionEngine {
       state.governance.votes[policy] += 1;
       state.governance.activePolicy = pickPolicy(state.governance.votes, state.governance.activePolicy);
       state.tick += 1;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.events.push(
         createEvent(
           state.events.length + 1,
@@ -77,6 +88,7 @@ export class ActionEngine {
           `Voted for ${policy}; active policy is now ${state.governance.activePolicy}`
         )
       );
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
       return {
         ok: true,
@@ -100,7 +112,6 @@ export class ActionEngine {
       const rewardMon = Number((rewardUnits * MON_REWARD_PER_UNIT * policyMultiplier).toFixed(4));
       wallet.monBalance += rewardMon;
       agent.reputation -= rewardUnits * 2;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.tick += 1;
       state.events.push(
         createEvent(
@@ -111,6 +122,7 @@ export class ActionEngine {
           `Claimed ${rewardMon} MON from reputation rewards`
         )
       );
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
 
       return {
@@ -139,8 +151,8 @@ export class ActionEngine {
       agent.location = to;
       agent.energy -= 1;
       state.tick += 1;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.events.push(createEvent(state.events.length + 1, state.tick, agent.id, "move", `Moved to ${to}`));
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
       return { ok: true, message: `Moved to ${to}`, tick: state.tick, energy: agent.energy, location: agent.location };
     }
@@ -161,7 +173,6 @@ export class ActionEngine {
       agent.energy -= 2;
       agent.reputation += 1;
       state.tick += 1;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.events.push(
         createEvent(
           state.events.length + 1,
@@ -171,6 +182,7 @@ export class ActionEngine {
           `Gathered resources at ${agent.location}`
         )
       );
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
       return { ok: true, message: `Gathered ${Object.keys(loot).join(", ")}`, tick: state.tick, energy: agent.energy, location: agent.location };
     }
@@ -207,7 +219,6 @@ export class ActionEngine {
       agent.reputation += 1;
       target.reputation += 1;
       state.tick += 1;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.events.push(
         createEvent(
           state.events.length + 1,
@@ -217,6 +228,7 @@ export class ActionEngine {
           `Traded with ${target.id}: gave ${req.qtyGive} ${req.itemGive}, received ${req.qtyTake} ${req.itemTake}`
         )
       );
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
       return { ok: true, message: `Trade completed with ${target.id}`, tick: state.tick, energy: agent.energy, location: agent.location };
     }
@@ -247,7 +259,6 @@ export class ActionEngine {
       }
 
       state.tick += 1;
-      this.applyPassiveMonDrip(state, agent.walletAddress);
       state.events.push(
         createEvent(
           state.events.length + 1,
@@ -257,6 +268,7 @@ export class ActionEngine {
           `Attacked ${target.id} for ${damage} damage${stolen ? ` and stole 1 ${stolen}` : ""}`
         )
       );
+      this.applyPostActionEconomy(state, agent.id, agent.walletAddress);
       this.bumpCooldown(state, agent.id);
 
       return { ok: true, message: `Attacked ${target.id}`, tick: state.tick, energy: agent.energy, location: agent.location };
@@ -291,6 +303,38 @@ export class ActionEngine {
     const wallet = state.wallets[walletAddress] ?? { address: walletAddress, monBalance: 0 };
     wallet.monBalance = Number((wallet.monBalance + PASSIVE_MON_DRIP_PER_ACTION).toFixed(6));
     state.wallets[walletAddress] = wallet;
+  }
+
+  private applyPostActionEconomy(state: WorldState, agentId: string, walletAddress: string): void {
+    this.applyPassiveMonDrip(state, walletAddress);
+    this.applyFaucetFloor(state, agentId, walletAddress);
+  }
+
+  private applyFaucetFloor(state: WorldState, agentId: string, walletAddress: string): void {
+    if (FAUCET_FLOOR_MON <= 0) {
+      return;
+    }
+    const wallet = state.wallets[walletAddress] ?? { address: walletAddress, monBalance: 0 };
+    if (wallet.monBalance >= FAUCET_FLOOR_MON) {
+      state.wallets[walletAddress] = wallet;
+      return;
+    }
+
+    const targetBalance = Math.max(FAUCET_FLOOR_MON, FAUCET_TOPUP_TO_MON);
+    const before = wallet.monBalance;
+    wallet.monBalance = Number(targetBalance.toFixed(6));
+    state.wallets[walletAddress] = wallet;
+
+    const toppedUpBy = Number((wallet.monBalance - before).toFixed(6));
+    state.events.push(
+      createEvent(
+        state.events.length + 1,
+        state.tick,
+        agentId,
+        "faucet",
+        `Faucet topped wallet by ${toppedUpBy} MON to maintain minimum balance`
+      )
+    );
   }
 }
 

@@ -62,6 +62,11 @@ Payment backend:
   - `MON_TEST_ENTRY_FEE_MON` (default `2`)
   - `MON_TEST_ENTRY_CONTRACT_ADDRESS` (optional payable contract target for entry txs)
   - `MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR` (optional 4-byte selector, e.g. `0x42cccee4` for `payEntry(string)`)
+- Economy continuity knobs:
+  - `MON_REWARD_PER_UNIT` (claim payout multiplier base)
+  - `PASSIVE_MON_DRIP_PER_ACTION` (adds MON on successful actions)
+  - `FAUCET_FLOOR_MON` (auto-refill trigger floor; disabled when `0`)
+  - `FAUCET_TOPUP_TO_MON` (target balance when faucet triggers)
 
 Autonomous agent brain mode:
 - `AGENT_BRAIN_MODE=rule` (default rule-based agents)

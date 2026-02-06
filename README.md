@@ -86,6 +86,8 @@ Advanced world actions:
 Reward tuning:
 - `MON_REWARD_PER_UNIT` controls MON payout per claim unit (default `0.01`).
 - `PASSIVE_MON_DRIP_PER_ACTION` adds MON per successful action (default `0`, optional for faster visible balance movement).
+- `FAUCET_FLOOR_MON` ensures wallets below a minimum are auto-refilled after successful actions (default `0`, disabled).
+- `FAUCET_TOPUP_TO_MON` target refill balance when faucet triggers (default `0`; uses floor if unset).
 
 Auto-agent simulation:
 - Agents can act automatically after entering.

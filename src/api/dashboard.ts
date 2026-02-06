@@ -454,6 +454,7 @@ export function renderDashboardHtml(): string {
       if (type === "vote") return "🗳";
       if (type === "claim") return "🏦";
       if (type === "rest") return "🛌";
+      if (type === "faucet") return "💧";
       if (type === "ai_reasoning") return "🤖";
       return "•";
     }
