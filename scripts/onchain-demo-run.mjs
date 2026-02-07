@@ -31,6 +31,9 @@ const KEYSTORE_DIR = process.env.MON_TEST_AGENT_KEYSTORE_DIR ?? "/tmp/agent007-k
 const FUND_PER_AGENT_MON = Number(process.env.MON_TEST_FUND_PER_AGENT_MON ?? "0.001");
 const ENTRY_FEE_MON = Number(process.env.MON_TEST_ENTRY_FEE_MON ?? "0.0001");
 const MIN_CONFIRMATIONS = Number(process.env.MON_TEST_MIN_CONFIRMATIONS ?? "1");
+// Monad RPC occasionally returns estimateGas errors for plain value transfers.
+// We default to a safe gas limit to avoid relying on eth_estimateGas.
+const GAS_LIMIT = Number(process.env.MON_TEST_GAS_LIMIT ?? "120000");
 
 const OUT_PAYMENTS = process.env.MON_TEST_OUT_PAYMENTS ?? "/tmp/onchain_demo_payments.json";
 const OUT_LOG = process.env.MON_TEST_SERVER_LOG ?? "/tmp/onchain_demo_server.log";
@@ -230,7 +233,8 @@ function castNoncePending(address) {
   return n;
 }
 
-function castSendValue({ keystorePath, to, valueMon, nonce }) {
+function castSendValue({ keystorePath, to, valueMon, nonce, gasLimit }) {
+  const gl = Number.isFinite(Number(gasLimit)) ? Number(gasLimit) : GAS_LIMIT;
   const res = sh("cast", [
     "send",
     "--async",
@@ -240,6 +244,8 @@ function castSendValue({ keystorePath, to, valueMon, nonce }) {
     keystorePath,
     "--password-file",
     KEYSTORE_PASSWORD_FILE,
+    "--gas-limit",
+    String(gl),
     ...(Number.isFinite(nonce) ? ["--nonce", String(nonce)] : []),
     "--value",
     `${valueMon}ether`,
@@ -340,7 +346,7 @@ async function main() {
   // Fund agents for (entry fee + gas + actions).
   let nonce = castNoncePending(funderAddress);
   for (const a of agents) {
-    castSendValue({ keystorePath: FUNDING_KEYSTORE, to: a.walletAddress, valueMon: FUND_PER_AGENT_MON, nonce });
+    castSendValue({ keystorePath: FUNDING_KEYSTORE, to: a.walletAddress, valueMon: FUND_PER_AGENT_MON, nonce, gasLimit: GAS_LIMIT });
     nonce += 1;
   }
 
@@ -398,7 +404,7 @@ async function main() {
   const payments = [];
   for (const a of agents) {
     const ks = `${KEYSTORE_DIR}/${a.agentId}`;
-    const paymentTxHash = castSendValue({ keystorePath: ks, to: treasury, valueMon: ENTRY_FEE_MON });
+    const paymentTxHash = castSendValue({ keystorePath: ks, to: treasury, valueMon: ENTRY_FEE_MON, gasLimit: GAS_LIMIT });
     payments.push({ ...a, paymentTxHash });
   }
   writeFileSync(OUT_PAYMENTS, JSON.stringify(payments, null, 2));
