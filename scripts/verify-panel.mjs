@@ -22,8 +22,8 @@ async function main() {
     ...process.env,
     PORT: String(PORT),
     PAYMENT_BACKEND: 'wallet',
-    ENTRY_FEE_MON: '0.1',
-    WALLET_INITIAL_BALANCE_MON: '0.2',
+    ENTRY_FEE_MON: '0.0001',
+    WALLET_INITIAL_BALANCE_MON: '0.001',
     AUTO_AGENT_ENABLED: 'true',
     AUTO_AGENT_INTERVAL_MS: '1000',
     AUTO_AGENT_ACTIONS_PER_CYCLE: '1',
@@ -55,7 +55,7 @@ async function main() {
       if (entry.status !== 200 || entry.response?.ok !== true) {
         throw new Error(`Entry failed for ${entry.payload.agentId}: ${JSON.stringify(entry)}`);
       }
-      if (entry.response.balance !== 0.1) {
+      if (entry.response.balance !== 0.0009) {
         throw new Error(`Unexpected entry balance for ${entry.payload.agentId}: ${entry.response.balance}`);
       }
     }

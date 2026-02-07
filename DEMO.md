@@ -12,27 +12,28 @@ npm run demo:setup
 
 This will:
 - reset world state
-- start server on port `3001`
-- create 3 AI-designated agents by default:
-  - `ai_demo_1`
-  - `ai_demo_2`
-  - `ai_demo_3`
-- run in fallback mode if `OPENAI_API_KEY` is not set
-- run in live AI mode if `OPENAI_API_KEY` is set before command
+- run the **on-chain Monad testnet** entry flow by default (real `paymentTxHash` required/used)
+  - funds 3 test wallets
+  - sends 3 entry txs
+  - admits agents only after on-chain confirmation
+  - writes tx hashes to `/tmp/onchain_demo_payments.json`
 
 Open dashboard:
 - `http://localhost:3001/dashboard`
 
-Optional (enable live AI first):
+Local-only (no chain) demo:
 ```bash
-export OPENAI_API_KEY='your_key'
-npm run demo:setup
+OPENAI_API_KEY='' npm run demo:setup:local
 ```
 
-Or strict live-AI setup (fails if key missing):
+Live AI demo (local wallet backend; requires key):
 ```bash
 OPENAI_API_KEY='your_key' npm run demo:setup:ai
 ```
+
+Demo defaults:
+- AI model: `gpt-4.1-mini`
+- AI timeout: `15000ms`
 
 ## 3) Add more agents when needed
 Add AI-designated agent:
@@ -54,6 +55,7 @@ npm run demo:add-ai -- ai_demo_5 wallet_ai_demo_5
 ```bash
 npm run demo:stop
 ```
+This command also clears stale metadata and cleans any remaining listener on port `3001`.
 
 ## 5) Non-interactive panel verification
 ```bash

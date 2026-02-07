@@ -1,8 +1,9 @@
 import { Wallet } from "../interfaces/types.js";
 
-const rawInitialBalanceMon = Number(process.env.WALLET_INITIAL_BALANCE_MON ?? "10");
+// Default initial balance is intentionally small so demos can create many wallets cheaply.
+const rawInitialBalanceMon = Number(process.env.WALLET_INITIAL_BALANCE_MON ?? "0.001");
 const DEFAULT_WALLET_INITIAL_BALANCE_MON =
-  Number.isFinite(rawInitialBalanceMon) && rawInitialBalanceMon >= 0 ? rawInitialBalanceMon : 10;
+  Number.isFinite(rawInitialBalanceMon) && rawInitialBalanceMon >= 0 ? rawInitialBalanceMon : 0.001;
 
 export class WalletService {
   ensureWallet(wallets: Record<string, Wallet>, address: string): Wallet {

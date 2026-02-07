@@ -16,7 +16,7 @@ async function main() {
   }
 
   if (!existsSync(META_PATH)) {
-    throw new Error('Demo metadata not found. Run `npm run demo:setup` first.');
+    throw new Error('Demo metadata not found. Run `npm run demo:setup:local` (or `npm run demo:setup:ai`) first.');
   }
 
   const meta = JSON.parse(readFileSync(META_PATH, 'utf8'));
@@ -45,8 +45,8 @@ async function restartMixedServer(aiAgentIds, meta) {
     ...process.env,
     PORT: String(meta.port ?? 3001),
     PAYMENT_BACKEND: 'wallet',
-    ENTRY_FEE_MON: '0.1',
-    WALLET_INITIAL_BALANCE_MON: '0.2',
+    ENTRY_FEE_MON: '0.0001',
+    WALLET_INITIAL_BALANCE_MON: '0.001',
     AUTO_AGENT_ENABLED: 'true',
     AUTO_AGENT_INTERVAL_MS: '1000',
     AUTO_AGENT_ACTIONS_PER_CYCLE: '1',

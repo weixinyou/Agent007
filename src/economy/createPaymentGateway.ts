@@ -30,7 +30,8 @@ export function createPaymentGateway(walletService: WalletService): PaymentGatew
     const rpcRetries = parseInt(process.env.MON_TEST_RPC_RETRIES ?? "2", 10);
     const confirmations = parseInt(process.env.MON_TEST_MIN_CONFIRMATIONS ?? "2", 10);
     const decimals = parseInt(process.env.MON_TEST_DECIMALS ?? "18", 10);
-    const entryFeeMon = parseFloat(process.env.MON_TEST_ENTRY_FEE_MON ?? "2");
+    // Default entry fee is intentionally small for hackathon demo/testing.
+    const entryFeeMon = parseFloat(process.env.MON_TEST_ENTRY_FEE_MON ?? "0.0001");
     const entryContractAddress = process.env.MON_TEST_ENTRY_CONTRACT_ADDRESS;
     const entryContractMethodSelector = process.env.MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR;
 
@@ -46,7 +47,7 @@ export function createPaymentGateway(walletService: WalletService): PaymentGatew
           requiredConfirmations: Number.isNaN(confirmations) ? 2 : Math.max(1, confirmations),
           expectedChainIdHex: process.env.MON_TEST_CHAIN_ID_HEX,
           decimals: Number.isNaN(decimals) ? 18 : Math.max(0, decimals),
-          entryFeeMon: Number.isNaN(entryFeeMon) ? 2 : Math.max(0, entryFeeMon),
+          entryFeeMon: Number.isNaN(entryFeeMon) ? 0.0001 : Math.max(0, entryFeeMon),
           entryContractAddress: entryContractAddress && entryContractAddress.length > 0 ? entryContractAddress : undefined,
           entryContractMethodSelector:
             entryContractMethodSelector && entryContractMethodSelector.length > 0 ? entryContractMethodSelector : undefined

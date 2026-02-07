@@ -47,7 +47,8 @@ const autoAgentConfig = {
   maxActionDelayMs: Math.max(
     Math.max(1_000, Number(process.env.AUTO_AGENT_MIN_ACTION_DELAY_MS ?? "5000")),
     Number(process.env.AUTO_AGENT_MAX_ACTION_DELAY_MS ?? "15000")
-  )
+  ),
+  maxAgentIdleMs: Math.max(2_000, Number(process.env.AUTO_AGENT_MAX_IDLE_MS ?? "15000"))
 };
 const aiMinActionDelayMs = Math.max(
   1_000,
@@ -57,6 +58,7 @@ const aiMaxActionDelayMs = Math.max(
   aiMinActionDelayMs,
   Number(process.env.AI_AGENT_MAX_ACTION_DELAY_MS ?? String(autoAgentConfig.maxActionDelayMs))
 );
+const aiTimeoutMs = Math.max(3000, Number(process.env.AI_AGENT_TIMEOUT_MS ?? "30000"));
 
 type AutonomousService = {
   start(): void;
@@ -93,7 +95,8 @@ if (brainMode === "rule") {
           minActionDelayMs: aiMinActionDelayMs,
           maxActionDelayMs: aiMaxActionDelayMs,
           minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
-          maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12"))
+          maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
+          emitAiCallEvents: true
         }
       )
     );
@@ -106,14 +109,16 @@ if (brainMode === "rule") {
           apiKey: process.env.OPENAI_API_KEY,
           model: process.env.AI_AGENT_MODEL ?? "gpt-5-nano",
           baseUrl: process.env.AI_AGENT_BASE_URL,
-          timeoutMs: Math.max(1000, Number(process.env.AI_AGENT_TIMEOUT_MS ?? "15000"))
+          timeoutMs: aiTimeoutMs,
+          maxAttempts: Math.max(1, Number(process.env.AI_AGENT_MAX_ATTEMPTS ?? "3"))
         }),
         {
           ...autoAgentConfig,
           minActionDelayMs: aiMinActionDelayMs,
           maxActionDelayMs: aiMaxActionDelayMs,
           minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
-          maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12"))
+          maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
+          emitAiCallEvents: false
         }
       )
     );
@@ -148,6 +153,7 @@ if (brainMode === "rule") {
             maxActionDelayMs: aiMaxActionDelayMs,
             minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
             maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
+            emitAiCallEvents: false,
             shouldControlAgent: (agentId) => aiAgentIds.has(agentId)
           }
         )
@@ -172,18 +178,20 @@ if (brainMode === "rule") {
           apiKey: process.env.OPENAI_API_KEY,
           model: process.env.AI_AGENT_MODEL ?? "gpt-5-nano",
           baseUrl: process.env.AI_AGENT_BASE_URL,
-          timeoutMs: Math.max(1000, Number(process.env.AI_AGENT_TIMEOUT_MS ?? "15000"))
+          timeoutMs: aiTimeoutMs,
+          maxAttempts: Math.max(1, Number(process.env.AI_AGENT_MAX_ATTEMPTS ?? "3"))
         }),
-        {
-          ...autoAgentConfig,
-          minActionDelayMs: aiMinActionDelayMs,
-          maxActionDelayMs: aiMaxActionDelayMs,
-          minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
-          maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
-          shouldControlAgent: (agentId) => aiAgentIds.has(agentId)
-        }
-      )
-    );
+          {
+            ...autoAgentConfig,
+            minActionDelayMs: aiMinActionDelayMs,
+            maxActionDelayMs: aiMaxActionDelayMs,
+            minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
+            maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
+            emitAiCallEvents: true,
+            shouldControlAgent: (agentId) => aiAgentIds.has(agentId)
+          }
+        )
+      );
   }
 } else {
   console.warn(`Unknown AGENT_BRAIN_MODE=${brainMode}. Falling back to rule mode.`);

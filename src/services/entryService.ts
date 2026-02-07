@@ -1,6 +1,6 @@
 import { AgentRegistry } from "../agents/agentRegistry.js";
 import { PaymentGateway } from "../economy/paymentGateway.js";
-import { EntryRequest, WorldState } from "../interfaces/types.js";
+import { EntryRequest, LocationId, WorldState } from "../interfaces/types.js";
 import { createEvent } from "../world/events/eventFactory.js";
 
 export class EntryService {
@@ -37,16 +37,22 @@ export class EntryService {
     }
 
     state.tick += 1;
-    state.agents[request.agentId] = this.agentRegistry.create(request.agentId, request.walletAddress);
+    const spawnLocation = randomSpawnLocation();
+    state.agents[request.agentId] = this.agentRegistry.create(request.agentId, request.walletAddress, spawnLocation);
     state.events.push(
       createEvent(
         state.events.length + 1,
         state.tick,
         request.agentId,
         "entry",
-        `Agent entered by paying ${receipt.amountMon ?? "unknown"} MON (tx: ${receipt.txId ?? "n/a"})`
+        `Agent entered at ${spawnLocation} by paying ${receipt.amountMon ?? "unknown"} MON (tx: ${receipt.txId ?? "n/a"})`
       )
     );
     return { ok: true, balance: receipt.balance, agentId: request.agentId, txId: receipt.txId };
   }
+}
+
+function randomSpawnLocation(): LocationId {
+  const locations: LocationId[] = ["town", "forest", "cavern"];
+  return locations[Math.floor(Math.random() * locations.length)];
 }

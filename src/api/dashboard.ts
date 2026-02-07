@@ -256,6 +256,7 @@ export function renderDashboardHtml(): string {
     .event-rest { border-left-color: #9de6f2; }
     .event-faucet { border-left-color: #6ec7ff; }
     .event-ai_reasoning { border-left-color: #86a3ff; }
+    .event-ai_call { border-left-color: #a48bff; }
 
     .event-detail {
       margin-top: 4px;
@@ -548,12 +549,64 @@ export function renderDashboardHtml(): string {
 
     function renderEvents(events) {
       const list = document.getElementById("events-list");
-      const rows = events.slice(-20).reverse().map((event) => {
+      const visibleEvents = events.filter((event) => {
+        const type = String(event.type || "").toLowerCase();
+        const msg = String(event.message || "").toLowerCase();
+        // Never show API call status rows in Recent Events.
+        if (type === "ai_call") return false;
+        if (msg.includes("api call succeeded") || msg.includes("api call failed")) return false;
+        return true;
+      });
+      // Pin entry/admission events so they don't "flash then disappear"
+      // during fast action loops.
+      const PIN_ENTRY_MS = 60_000;
+      window.__pinnedEntryEvents = window.__pinnedEntryEvents || new Map();
+      const pinned = window.__pinnedEntryEvents;
+      const nowMs = Date.now();
+
+      const entryEvents = visibleEvents.filter((e) => String(e.type || "").toLowerCase() === "entry");
+      for (const e of entryEvents.slice(-20)) {
+        if (!e || !e.id) continue;
+        if (!pinned.has(e.id)) {
+          pinned.set(e.id, { event: e, firstSeenMs: nowMs });
+        } else {
+          // Refresh stored payload in case message formatting changes.
+          const prev = pinned.get(e.id);
+          pinned.set(e.id, { event: e, firstSeenMs: prev.firstSeenMs });
+        }
+      }
+      // Expire pins after minimum visibility window.
+      for (const [id, val] of pinned.entries()) {
+        if (!val || !val.firstSeenMs) {
+          pinned.delete(id);
+          continue;
+        }
+        if (nowMs - val.firstSeenMs > PIN_ENTRY_MS) {
+          pinned.delete(id);
+        }
+      }
+
+      const pinnedEntries = Array.from(pinned.values()).map((v) => v.event);
+      const nonEntryEvents = visibleEvents
+        .filter((e) => String(e.type || "").toLowerCase() !== "entry")
+        .slice(-32);
+
+      const byId = new Map();
+      for (const e of [...pinnedEntries, ...entryEvents.slice(-8), ...nonEntryEvents]) {
+        byId.set(e.id, e);
+      }
+      const merged = Array.from(byId.values()).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+
+      const rows = merged.reverse().map((event) => {
+        const aiModeTag = event.type === "ai_reasoning" ? "AI" : "";
         const reasonTag = event.type === "ai_reasoning"
-          ? "<span class=\\"reason-tag reason-ai\\">AI</span>"
+          ? "<span class=\\"reason-tag reason-ai\\">" + aiModeTag + "</span>"
+          : "";
+        const pinnedTag = String(event.type || "").toLowerCase() === "entry"
+          ? "<span class=\\"reason-tag\\" style=\\"background:#214d3f;color:#bdf7d4\\">ENTRY</span>"
           : "";
         return "<li class=\\"event-" + event.type + "\\">" +
-          "<div><span class=\\"event-time\\">" + new Date(event.at).toLocaleTimeString() + "</span><span class=\\"pill\\"><span class=\\"event-icon\\">" + iconForEvent(event.type) + "</span><span class=\\"event-type\\">" + event.type + "</span></span>" + reasonTag + "</div>" +
+          "<div><span class=\\"event-time\\">" + new Date(event.at).toLocaleTimeString() + "</span><span class=\\"pill\\"><span class=\\"event-icon\\">" + iconForEvent(event.type) + "</span><span class=\\"event-type\\">" + event.type + "</span></span>" + pinnedTag + reasonTag + "</div>" +
           "<div class=\\"event-detail\\"><strong>" + event.agentId + "</strong> " + event.message + "</div>" +
         "</li>"
       });
@@ -562,14 +615,11 @@ export function renderDashboardHtml(): string {
 
     function detectAgentBrain(agentId, events) {
       const recent = events.slice(-80).filter((event) => event.agentId === agentId && event.type === "ai_reasoning");
+      // Per request: do not show Rule in the brain column.
       if (recent.length === 0) {
-        return { label: "RULE", html: "<span class=\\"brain-badge brain-rule\\">Rule</span>" };
+        return { label: "AI", html: "<span class=\\"brain-badge brain-fallback\\">AI</span>" };
       }
-      const last = recent[recent.length - 1];
-      if (String(last.message || "").startsWith("[AI]")) {
-        return { label: "AI", html: "<span class=\\"brain-badge brain-ai\\">AI</span>" };
-      }
-      return { label: "AI", html: "<span class=\\"brain-badge brain-ai\\">AI</span>" };
+      return { label: "AI", html: "<span class=\\"brain-badge brain-fallback\\">AI</span>" };
     }
 
     function iconForLocation(location) {
@@ -590,6 +640,7 @@ export function renderDashboardHtml(): string {
       if (type === "rest") return "🛌";
       if (type === "faucet") return "💧";
       if (type === "ai_reasoning") return "🤖";
+      if (type === "ai_call") return "🧠";
       return "•";
     }
 

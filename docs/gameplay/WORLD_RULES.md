@@ -89,7 +89,7 @@ Formula:
 - `rewardMON = rewardUnits * MON_REWARD_PER_UNIT * policyMultiplier`
 
 Defaults:
-- `MON_REWARD_PER_UNIT = 0.01`
+- `MON_REWARD_PER_UNIT = 0.00001`
 - Multipliers: `cooperative=1.2`, `neutral=1.0`, `aggressive=0.8`
 
 Claim reduces reputation by `2 * rewardUnits`.

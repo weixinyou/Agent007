@@ -124,8 +124,13 @@ export function createAppServer(deps: AppServerDeps): http.Server {
       const state = store.read();
       const recentEvents = state.events.slice(-200);
       const aiReasoningEvents = recentEvents.filter((event) => event.type === "ai_reasoning");
+      const aiCallEvents = recentEvents.filter((event) => event.type === "ai_call");
       const aiReasoningAi = aiReasoningEvents.filter((event) => event.message.startsWith("[AI]")).length;
-      const aiReasoningFallback = aiReasoningEvents.filter((event) => event.message.startsWith("[FALLBACK]")).length;
+      const aiReasoningFallback = aiReasoningEvents.filter((event) =>
+        /I observed location=|Primary action .* failed \(Agent is planning/i.test(event.message)
+      ).length;
+      const aiCallSuccess = aiCallEvents.filter((event) => /API call succeeded/i.test(event.message)).length;
+      const aiCallFailure = aiCallEvents.filter((event) => /API call failed/i.test(event.message)).length;
       send(res, 200, {
         tick: state.tick,
         agentCount: Object.keys(state.agents).length,
@@ -138,6 +143,11 @@ export function createAppServer(deps: AppServerDeps): http.Server {
           total: aiReasoningEvents.length,
           ai: aiReasoningAi,
           fallback: aiReasoningFallback
+        },
+        aiApi: {
+          total: aiCallEvents.length,
+          success: aiCallSuccess,
+          failed: aiCallFailure
         }
       });
       return;

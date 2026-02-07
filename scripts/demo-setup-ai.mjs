@@ -8,7 +8,8 @@ if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.trim().length === 
   process.exit(1);
 }
 
-const child = spawn('npm', ['run', 'demo:setup'], {
+// Use the local mixed-mode demo launcher; on-chain demo is handled separately.
+const child = spawn('npm', ['run', 'demo:setup:local'], {
   stdio: 'inherit',
   shell: true,
   env: process.env

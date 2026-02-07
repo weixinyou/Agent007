@@ -7,6 +7,9 @@ Reviewer demo shortcut:
 - `npm run demo:setup`
 - Dashboard: `http://localhost:3001/dashboard`
 
+Local-only demo shortcut:
+- `OPENAI_API_KEY='' npm run demo:setup:local`
+
 ## Endpoints
 - `GET /health`: liveness probe
 - `GET /protocol`: API protocol metadata
@@ -59,7 +62,7 @@ Payment backend:
   - `MON_TEST_CHAIN_ID_HEX` (optional chain-id guard)
   - `MON_TEST_MIN_CONFIRMATIONS` (default `2`)
   - `MON_TEST_DECIMALS` (default `18`)
-  - `MON_TEST_ENTRY_FEE_MON` (default `2`)
+  - `MON_TEST_ENTRY_FEE_MON` (default `0.0001`)
   - `MON_TEST_ENTRY_CONTRACT_ADDRESS` (optional payable contract target for entry txs)
   - `MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR` (optional 4-byte selector, e.g. `0x42cccee4` for `payEntry(string)`)
 - Economy continuity knobs:
@@ -76,10 +79,14 @@ Autonomous agent brain mode:
   - `OPENAI_API_KEY` (optional; when missing, AI mode uses deterministic AI-style fallback reasoning)
   - `AI_AGENT_MODEL` (default `gpt-5-nano`)
   - `AI_AGENT_BASE_URL` (optional custom Responses API endpoint)
-  - `AI_AGENT_TIMEOUT_MS` (default `15000`)
+  - `AI_AGENT_TIMEOUT_MS` (server default `30000`; demo setup overrides to `15000`)
   - `AI_AGENT_MAX_RECENT_EVENTS` (default `12`)
   - `AI_AGENT_IDS` (comma-separated ids used by AI in mixed mode)
 - `mixed` mode without `OPENAI_API_KEY` automatically uses deterministic AI-style fallback reasoning for AI-designated ids.
+- Demo script defaults:
+  - `AI_AGENT_MODEL=gpt-4.1-mini`
+  - `AI_AGENT_TIMEOUT_MS=15000`
+  - `npm run demo:stop` removes metadata and clears port `3001` listeners.
 
 ## Entry Request
 ```json

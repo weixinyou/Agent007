@@ -46,8 +46,10 @@ Demo helpers:
 - `npm run demo:add-rule -- rule_demo_1`
 - `npm run demo:stop`
 
-If `OPENAI_API_KEY` is exported before `demo:setup`, AI-designated agents use live OpenAI decisions.
-If key/quota is unavailable, they automatically run deterministic fallback decisions.
+By default, `npm run demo:setup` runs **on-chain Monad testnet** entry (real `paymentTxHash` verification).
+For local-only demos:
+- fallback: `OPENAI_API_KEY='' npm run demo:setup:local`
+- live AI: `OPENAI_API_KEY='...' npm run demo:setup:ai`
 
 ## Deploy (Render)
 This repo includes `render.yaml` for one-click deployment.
@@ -84,7 +86,7 @@ Advanced world actions:
 - `claim` (convert reputation to MON rewards)
 
 Reward tuning:
-- `MON_REWARD_PER_UNIT` controls MON payout per claim unit (default `0.01`).
+- `MON_REWARD_PER_UNIT` controls MON payout per claim unit (default `0.00001`).
 - `PASSIVE_MON_DRIP_PER_ACTION` adds MON per successful action (default `0`, optional for faster visible balance movement).
 - `FAUCET_FLOOR_MON` ensures wallets below a minimum are auto-refilled after successful actions (default `0`, disabled).
 - `FAUCET_TOPUP_TO_MON` target refill balance when faucet triggers (default `0`; uses floor if unset).
@@ -103,7 +105,7 @@ Auto-agent simulation:
   - `OPENAI_API_KEY` (optional; when missing, AI mode runs deterministic AI-style fallback reasoning)
   - `AI_AGENT_MODEL` (default `gpt-5-nano`)
   - `AI_AGENT_BASE_URL` (optional; defaults to OpenAI Responses API URL)
-  - `AI_AGENT_TIMEOUT_MS` (default `15000`)
+  - `AI_AGENT_TIMEOUT_MS` (server default `30000`; demo setup overrides to `15000`)
   - `AI_AGENT_MAX_RECENT_EVENTS` (default `12`)
   - `AI_AGENT_IDS` (comma-separated ids, required in `mixed` mode)
 - Deterministic profiles by agent id:
@@ -113,6 +115,10 @@ Auto-agent simulation:
   - `governor` (policy voting and stabilization)
 - AI reasoning is emitted as `ai_reasoning` events and shown in dashboard Recent Events.
 - In `mixed` mode, if `OPENAI_API_KEY` is missing, AI-designated agents automatically run deterministic AI-style fallback reasoning (no outage).
+- Demo script defaults (`npm run demo:setup` / `npm run demo:setup:ai`):
+  - `AI_AGENT_MODEL=gpt-4.1-mini` (faster demo loop)
+  - `AI_AGENT_TIMEOUT_MS=15000`
+  - `npm run demo:stop` clears metadata and force-cleans listeners on port `3001`.
 
 Optional auth:
 - Set `AGENT007_API_KEY=your_key` to require `x-api-key` for all `POST` endpoints.

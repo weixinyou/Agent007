@@ -35,6 +35,7 @@ export interface AiClientConfig {
   model: string;
   baseUrl?: string;
   timeoutMs: number;
+  maxAttempts?: number;
 }
 
 interface RawAiAction {
@@ -58,36 +59,36 @@ const ACTION_RESPONSE_SCHEMA = {
       enum: ["move", "gather", "rest", "trade", "attack", "vote", "claim"]
     },
     target: {
-      type: "string",
-      enum: ["town", "forest", "cavern"]
+      type: ["string", "null"],
+      enum: ["town", "forest", "cavern", null]
     },
     targetAgentId: {
-      type: "string"
+      type: ["string", "null"]
     },
     itemGive: {
-      type: "string"
+      type: ["string", "null"]
     },
     qtyGive: {
-      type: "integer",
+      type: ["integer", "null"],
       minimum: 1
     },
     itemTake: {
-      type: "string"
+      type: ["string", "null"]
     },
     qtyTake: {
-      type: "integer",
+      type: ["integer", "null"],
       minimum: 1
     },
     votePolicy: {
-      type: "string",
-      enum: ["neutral", "cooperative", "aggressive"]
+      type: ["string", "null"],
+      enum: ["neutral", "cooperative", "aggressive", null]
     },
     reasoning: {
       type: "string",
       minLength: 20
     }
   },
-  required: ["action", "reasoning"]
+  required: ["action", "target", "targetAgentId", "itemGive", "qtyGive", "itemTake", "qtyTake", "votePolicy", "reasoning"]
 };
 
 export class AiClient {
@@ -99,72 +100,102 @@ export class AiClient {
       throw new Error("Global fetch is not available; cannot call AI API");
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
-
-    try {
-      const response = await fetchImpl(this.config.baseUrl ?? OPENAI_RESPONSES_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.config.apiKey}`
+    const requestBody = JSON.stringify({
+      model: this.config.model,
+      input: [
+        {
+          role: "system",
+          content:
+            "You control one game agent. Return a single valid JSON action object. " +
+            "Prefer actions likely to succeed now. Never include markdown. " +
+            "Reasoning must explain current constraints and why this action is best now."
         },
-        body: JSON.stringify({
-          model: this.config.model,
-          input: [
-            {
-              role: "system",
-              content:
-                "You control one game agent. Return a single valid JSON action object. " +
-                "Prefer actions likely to succeed now. Never include markdown. " +
-                "Reasoning must explain current constraints and why this action is best now."
-            },
-            {
-              role: "user",
-              content:
-                "Choose one action for this agent based on world context. " +
-                "Use move only to reachable locations. " +
-                "Use attack/trade only with nearbyAgents ids.\n" +
-                JSON.stringify(context)
-            }
-          ],
-          text: {
-            format: {
-              type: "json_schema",
-              name: "agent_action",
-              schema: ACTION_RESPONSE_SCHEMA,
-              strict: true
-            }
-          }
-        }),
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI API error: HTTP ${response.status}`);
+        {
+          role: "user",
+          content:
+            "Choose one action for this agent based on world context. " +
+            "Use move only to reachable locations. " +
+            "Use attack/trade only with nearbyAgents ids.\n" +
+            JSON.stringify(context)
+        }
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "agent_action",
+          schema: ACTION_RESPONSE_SCHEMA,
+          strict: true
+        }
       }
+    });
 
-      const payload = (await response.json()) as Record<string, unknown>;
-      const text = extractOutputText(payload);
-      const parsed = JSON.parse(text) as RawAiAction;
+    const maxAttempts = Math.max(1, this.config.maxAttempts ?? 3);
+    let attempt = 0;
+    let lastError: Error | null = null;
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
+      try {
+        const response = await fetchImpl(this.config.baseUrl ?? OPENAI_RESPONSES_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.config.apiKey}`
+          },
+          body: requestBody,
+          signal: controller.signal
+        });
 
-      const request = parseActionRequest({
-        agentId: context.agent.id,
-        action: parsed.action,
-        target: parsed.target,
-        targetAgentId: parsed.targetAgentId,
-        itemGive: parsed.itemGive,
-        qtyGive: parsed.qtyGive,
-        itemTake: parsed.itemTake,
-        qtyTake: parsed.qtyTake,
-        votePolicy: parsed.votePolicy
-      });
+        if (!response.ok) {
+          const raw = await response.text().catch(() => "");
+          const err = new Error(`AI API error: HTTP ${response.status}${raw ? ` ${raw.slice(0, 220)}` : ""}`);
+          const shouldRetry = response.status >= 500 || response.status === 429 || response.status === 408;
+          if (shouldRetry && attempt < maxAttempts) {
+            await sleepMs(350 * attempt);
+            lastError = err;
+            continue;
+          }
+          throw err;
+        }
 
-      return { request, reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : undefined };
-    } finally {
-      clearTimeout(timeout);
+        const payload = (await response.json()) as Record<string, unknown>;
+        const text = extractOutputText(payload);
+        const parsed = JSON.parse(text) as RawAiAction;
+
+        const request = parseActionRequest({
+          agentId: context.agent.id,
+          action: parsed.action,
+          target: parsed.target ?? undefined,
+          targetAgentId: parsed.targetAgentId ?? undefined,
+          itemGive: parsed.itemGive ?? undefined,
+          qtyGive: parsed.qtyGive ?? undefined,
+          itemTake: parsed.itemTake ?? undefined,
+          qtyTake: parsed.qtyTake ?? undefined,
+          votePolicy: parsed.votePolicy ?? undefined
+        });
+
+        return { request, reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : undefined };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const transient = /timed out|timeout|ECONNRESET|ENOTFOUND|fetch failed|aborted/i.test(message);
+        if (transient && attempt < maxAttempts) {
+          await sleepMs(350 * attempt);
+          lastError = error instanceof Error ? error : new Error(message);
+          continue;
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
     }
+
+    throw lastError ?? new Error("AI request failed after retries");
   }
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function extractOutputText(payload: Record<string, unknown>): string {

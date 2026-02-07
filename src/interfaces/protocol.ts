@@ -1,5 +1,6 @@
-const rawEntryFeeMon = Number(process.env.ENTRY_FEE_MON ?? "2");
-export const ENTRY_FEE_MON = Number.isFinite(rawEntryFeeMon) && rawEntryFeeMon > 0 ? rawEntryFeeMon : 2;
+// Default entry fee is intentionally small so reviewers can spawn many agents cheaply.
+const rawEntryFeeMon = Number(process.env.ENTRY_FEE_MON ?? "0.0001");
+export const ENTRY_FEE_MON = Number.isFinite(rawEntryFeeMon) && rawEntryFeeMon > 0 ? rawEntryFeeMon : 0.0001;
 
 export const API_PROTOCOL = {
   version: "v1",

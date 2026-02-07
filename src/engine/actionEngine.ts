@@ -4,8 +4,9 @@ import { createEvent } from "../world/events/eventFactory.js";
 import { gatherYield, canMove } from "../world/rules/rules.js";
 
 const MON_REWARD_PER_UNIT = (() => {
-  const raw = Number(process.env.MON_REWARD_PER_UNIT ?? "0.01");
-  if (!Number.isFinite(raw) || raw < 0) return 0.01;
+  // Default claim reward is intentionally small so the economy doesn't inflate when entry fees are tiny.
+  const raw = Number(process.env.MON_REWARD_PER_UNIT ?? "0.00001");
+  if (!Number.isFinite(raw) || raw < 0) return 0.00001;
   return raw;
 })();
 
@@ -109,7 +110,8 @@ export class ActionEngine {
       }
 
       const policyMultiplier = state.governance.activePolicy === "cooperative" ? 1.2 : state.governance.activePolicy === "aggressive" ? 0.8 : 1;
-      const rewardMon = Number((rewardUnits * MON_REWARD_PER_UNIT * policyMultiplier).toFixed(4));
+      // Keep enough precision for small-entry-fee demos (e.g., 0.0001 MON).
+      const rewardMon = Number((rewardUnits * MON_REWARD_PER_UNIT * policyMultiplier).toFixed(6));
       wallet.monBalance += rewardMon;
       agent.reputation -= rewardUnits * 2;
       state.tick += 1;
