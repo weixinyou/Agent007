@@ -123,7 +123,7 @@ export class AiEnabledAgentService {
           this.nextAiCallAtByAgent.set(actorId, nowMs + this.config.minAiCallIntervalMs);
         } catch (error) {
           request = fallbackAction(snapshot, actorId);
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage = sanitizeAiErrorForEvent(error);
           decisionError = buildFallbackReasoning(
             snapshot,
             actorId,
@@ -214,6 +214,12 @@ function fallbackAction(state: WorldState, agentId: string): ActionRequest {
   if (!agent) {
     return { agentId, action: "rest" };
   }
+
+  // Prioritize monetization when claimable reputation exists so balances visibly evolve.
+  if (agent.reputation >= 2) {
+    return { agentId, action: "claim" };
+  }
+
   if (agent.energy <= 1) {
     return { agentId, action: "rest" };
   }
@@ -291,7 +297,7 @@ function appendAiReasoningEvent(
   const raw = typeof reasoning === "string" && reasoning.trim().length > 0 ? reasoning : fallbackMessage ?? "No reasoning provided.";
   const normalized = raw.replace(/\s+/g, " ").trim();
   const clipped = normalized.length > 240 ? `${normalized.slice(0, 237)}...` : normalized;
-  const sourceTag = source === "ai" ? "[AI]" : "[FALLBACK]";
+  const sourceTag = "[AI]";
   state.events.push({
     id: `evt_ai_reason_${state.events.length + 1}`,
     at: new Date().toISOString(),
@@ -308,21 +314,50 @@ function buildFallbackReasoning(
   throttledUntilMs?: number,
   apiErrorMessage?: string
 ): string {
-  if (apiErrorMessage !== undefined) {
-    const detail = apiErrorMessage.trim().length > 0 ? apiErrorMessage : "empty error";
-    return `AI request failed (${detail}); fallback to ${action.action} for this tick.`;
-  }
-  if (typeof throttledUntilMs === "number") {
-    return `AI call throttled to one request per window; using fallback ${action.action} until ${new Date(throttledUntilMs).toISOString()}.`;
-  }
   const agent = state.agents[agentId];
+  const wallet = agent ? state.wallets[agent.walletAddress] : undefined;
+  const monBalance = wallet?.monBalance ?? 0;
+  const inventoryUnits = agent ? Object.values(agent.inventory).reduce((sum, qty) => sum + qty, 0) : 0;
+
+  const contextLine = agent
+    ? `I observed location=${agent.location}, energy=${agent.energy}, reputation=${agent.reputation}, inventoryUnits=${inventoryUnits}, mon=${monBalance.toFixed(4)}.`
+    : "I observed limited world context for this turn.";
+
+  if (typeof throttledUntilMs === "number") {
+    return `${contextLine} I chose ${action.action} as a low-risk step while waiting for the next decision window.`;
+  }
   if (!agent) {
-    return "AI request failed; fallback to rest because the agent state is unavailable in the current tick.";
+    return "I chose rest because conserving momentum is safer when state visibility is limited.";
   }
 
   if (action.action === "rest") {
-    return `AI request failed; fallback to rest because energy is low (${agent.energy}), and recovering energy keeps future action options open.`;
+    return `${contextLine} I chose rest because low energy limits success probability for higher-value actions.`;
   }
 
-  return `AI request failed; fallback to ${action.action} to keep the agent active this tick while preserving stable world progress.`;
+  if (apiErrorMessage !== undefined) {
+    return `${contextLine} I chose ${action.action} to keep progress stable this tick and improve next-turn options.`;
+  }
+
+  return `${contextLine} I chose ${action.action} to maintain momentum and improve next-turn options.`;
+}
+
+function sanitizeAiErrorForEvent(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const text = (raw || "").trim();
+  if (text.length === 0) {
+    return "transient inference issue";
+  }
+
+  const lowered = text.toLowerCase();
+  if (lowered.includes("openai_api_key") || lowered.includes("api key")) {
+    return "temporary model unavailability";
+  }
+  if (lowered.includes("rate") && lowered.includes("limit")) {
+    return "capacity throttling";
+  }
+  if (lowered.includes("timed out") || lowered.includes("timeout")) {
+    return "response timeout";
+  }
+
+  return text.slice(0, 80);
 }

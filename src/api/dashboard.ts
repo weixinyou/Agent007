@@ -6,18 +6,24 @@ export function renderDashboardHtml(): string {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Agent007 World Dashboard</title>
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap");
+
     :root {
-      --bg-a: #f4efe6;
-      --bg-b: #c7d9d2;
-      --panel: rgba(255, 255, 255, 0.9);
-      --panel-line: #1f3f3f22;
-      --ink: #1f2f2f;
-      --accent: #0b7d77;
-      --accent-2: #b8612f;
-      --ok: #1f7a37;
-      --warn: #8d2f2f;
-      --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: "Avenir Next", "Trebuchet MS", Verdana, sans-serif;
+      --bg-a: #071218;
+      --bg-b: #102736;
+      --bg-c: #26474c;
+      --panel: rgba(15, 33, 44, 0.76);
+      --panel-line: #9ff6e230;
+      --ink: #ecf8ff;
+      --muted: #8eb7c9;
+      --accent: #2de2bc;
+      --accent-2: #ffd479;
+      --accent-3: #68a5ff;
+      --danger: #ff7f72;
+      --ok: #35df9f;
+      --warn: #ff9b54;
+      --mono: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      --sans: "Space Grotesk", "Avenir Next", "Trebuchet MS", Verdana, sans-serif;
     }
 
     * { box-sizing: border-box; }
@@ -26,34 +32,36 @@ export function renderDashboardHtml(): string {
       color: var(--ink);
       font-family: var(--sans);
       background:
-        radial-gradient(circle at 10% 20%, #ffffffbb 0, transparent 30%),
-        radial-gradient(circle at 85% 8%, #ffffffa1 0, transparent 34%),
-        linear-gradient(135deg, var(--bg-a), var(--bg-b));
+        radial-gradient(60% 60% at 14% 9%, #3af0cc35 0%, transparent 45%),
+        radial-gradient(56% 64% at 88% 18%, #68a5ff30 0%, transparent 44%),
+        radial-gradient(46% 58% at 50% 100%, #ffd4791e 0%, transparent 48%),
+        linear-gradient(130deg, var(--bg-a), var(--bg-b) 45%, var(--bg-c));
       min-height: 100vh;
     }
 
     .wrap {
-      max-width: 1180px;
+      max-width: 1220px;
       margin: 0 auto;
-      padding: 24px 16px 40px;
+      padding: 28px 18px 44px;
     }
 
     h1 {
       margin: 0;
-      letter-spacing: 0.5px;
-      font-size: clamp(1.6rem, 2.6vw, 2.4rem);
-      color: #173333;
+      letter-spacing: -0.6px;
+      font-size: clamp(1.9rem, 3vw, 2.8rem);
+      color: #f2ffff;
     }
 
     .subtitle {
-      margin: 4px 0 20px;
-      opacity: 0.8;
-      font-size: 0.95rem;
+      margin: 5px 0 22px;
+      color: var(--muted);
+      font-size: 0.96rem;
+      max-width: 780px;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(12, 1fr);
+      grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 14px;
     }
 
@@ -69,40 +77,69 @@ export function renderDashboardHtml(): string {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: #ffffffd6;
-      border: 1px solid #00000018;
+      background: #0e2a37cf;
+      border: 1px solid #78f5db55;
       border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 0.78rem;
+      padding: 7px 12px;
+      font-size: 0.75rem;
+      color: #d6fff3;
       font-family: var(--mono);
+      letter-spacing: 0.4px;
     }
 
     .live-dot {
       width: 9px;
       height: 9px;
       border-radius: 50%;
-      background: #28a745;
-      box-shadow: 0 0 0 3px #28a74533;
+      background: var(--ok);
+      box-shadow: 0 0 0 4px #36e2a73d;
       animation: pulse 1.4s ease-in-out infinite;
     }
 
     .card {
       background: var(--panel);
       border: 1px solid var(--panel-line);
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 14px;
-      backdrop-filter: blur(2px);
-      box-shadow: 0 8px 20px #0f2f2f11;
-      transform: translateY(6px);
-      opacity: 0;
-      animation: rise 380ms ease forwards;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 14px 35px #02101855;
+      position: relative;
+      transform: translateY(0);
+      opacity: 1;
+      animation: rise 420ms ease both;
+      overflow: hidden;
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(140deg, #2de2bc08, #68a5ff08 60%, transparent);
+      pointer-events: none;
+    }
+    .card::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 3px;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-3), var(--accent-2));
+      opacity: 0.7;
     }
 
-    .kpis { grid-column: span 12; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-    .kpi { padding: 10px; border-radius: 10px; background: #ffffffcc; border: 1px solid #00000010; }
+    .kpis { grid-column: span 12; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+    .kpi {
+      padding: 12px;
+      border-radius: 12px;
+      background: #0e2634bf;
+      border: 1px solid #7de6d026;
+      box-shadow: inset 0 1px 0 #ffffff12;
+    }
     .kpi .icon { font-size: 0.95rem; margin-right: 6px; }
-    .kpi .label { font-size: 0.72rem; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.8px; }
-    .kpi .value { margin-top: 4px; font-size: 1.16rem; font-weight: 700; }
+    .kpi .label { font-size: 0.69rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.1px; }
+    .kpi .value { margin-top: 6px; font-size: 1.22rem; font-weight: 800; color: #f6ffff; }
 
     .agents { grid-column: span 7; }
     .events { grid-column: span 5; }
@@ -114,43 +151,51 @@ export function renderDashboardHtml(): string {
       justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
+      position: relative;
+      z-index: 1;
     }
 
+    .head strong { color: #effdff; letter-spacing: 0.2px; }
+
     .status {
-      font-size: 0.8rem;
-      padding: 3px 8px;
+      font-size: 0.73rem;
+      padding: 4px 8px;
       border-radius: 999px;
-      border: 1px solid #00000019;
+      border: 1px solid #87f7df46;
       font-family: var(--mono);
-      background: #fff;
+      letter-spacing: 0.4px;
+      background: #112c3999;
+      color: #d8fff4;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.9rem;
+      position: relative;
+      z-index: 1;
     }
 
     th, td {
       text-align: left;
       padding: 8px 6px;
-      border-bottom: 1px solid #00000012;
+      border-bottom: 1px solid #82bad721;
       vertical-align: top;
     }
 
     th {
-      font-size: 0.76rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      opacity: 0.75;
+      letter-spacing: 0.95px;
+      color: var(--muted);
       position: sticky;
       top: 0;
-      background: #f8fbfa;
+      background: #102938f0;
       z-index: 1;
     }
 
     tbody tr:hover {
-      background: #ffffffaa;
+      background: #17394b70;
     }
 
     .energy {
@@ -159,33 +204,93 @@ export function renderDashboardHtml(): string {
       font-weight: 700;
     }
 
+    .brain-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      border: 1px solid #ffffff2a;
+      white-space: nowrap;
+    }
+    .brain-ai { background: #14316e8f; color: #9ec5ff; }
+    .brain-fallback { background: #5f431588; color: #ffd9a1; }
+    .brain-rule { background: #1347388a; color: #9effe2; }
+
     ul.events-list {
       margin: 0;
       padding: 0;
       list-style: none;
-      max-height: 410px;
+      max-height: 430px;
       overflow: auto;
+      position: relative;
+      z-index: 1;
     }
 
     ul.events-list li {
-      padding: 8px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      background: #ffffffcf;
-      border: 1px solid #00000010;
+      padding: 10px 10px 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 9px;
+      background: #0d2532d7;
+      border: 1px solid #6ec9da28;
+      border-left: 5px solid #87aab4;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    ul.events-list li:hover {
+      transform: translateX(2px);
+      box-shadow: 0 6px 18px #02192599;
+      background: #123346dc;
+    }
+
+    .event-entry { border-left-color: #6f86ff; }
+    .event-move { border-left-color: #66cbff; }
+    .event-gather { border-left-color: #4de3ae; }
+    .event-trade { border-left-color: #82fff0; }
+    .event-attack { border-left-color: #ff8e76; }
+    .event-vote { border-left-color: #c58bff; }
+    .event-claim { border-left-color: #f6d16e; }
+    .event-rest { border-left-color: #9de6f2; }
+    .event-faucet { border-left-color: #6ec7ff; }
+    .event-ai_reasoning { border-left-color: #86a3ff; }
+
+    .event-detail {
+      margin-top: 4px;
+      line-height: 1.35;
+      color: #e8f8ff;
+    }
+
+    .reason-tag {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 6px;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 0.65rem;
+      border: 1px solid #ffffff22;
+      letter-spacing: 0.3px;
+    }
+    .reason-ai { background: #1c3d8f8c; color: #c3d8ff; }
+    .reason-fallback { background: #6b4a1f8a; color: #ffe3b9; }
+
+    .pulse-update {
+      animation: updatePulse 650ms ease;
     }
 
     .event-time {
       font-size: 0.74rem;
-      color: #234f4f;
+      color: #8cc1d9;
       font-family: var(--mono);
     }
 
     .event-type {
       color: var(--accent);
-      font-size: 0.77rem;
+      font-size: 0.74rem;
       text-transform: uppercase;
-      letter-spacing: 0.7px;
+      letter-spacing: 0.75px;
       margin-left: 6px;
     }
 
@@ -194,10 +299,11 @@ export function renderDashboardHtml(): string {
       align-items: center;
       gap: 6px;
       border-radius: 999px;
-      border: 1px solid #0000001b;
-      background: #ffffffd7;
+      border: 1px solid #97efe13f;
+      background: #133343aa;
+      color: #d6fff5;
       padding: 3px 8px;
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       line-height: 1;
     }
 
@@ -210,11 +316,11 @@ export function renderDashboardHtml(): string {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       border-radius: 999px;
       padding: 2px 8px;
-      background: #e8f3ef;
-      border: 1px solid #00000014;
+      background: #16394b;
+      border: 1px solid #95e6d033;
     }
 
     .agent-id {
@@ -232,10 +338,11 @@ export function renderDashboardHtml(): string {
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      border: 1px solid #0000001f;
-      background: #f5faf8;
+      border: 1px solid #9dd9f12f;
+      background: #102b3a;
+      color: #d9f6ff;
       padding: 2px 8px;
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       line-height: 1.25;
       white-space: nowrap;
     }
@@ -252,57 +359,67 @@ export function renderDashboardHtml(): string {
     .gov-active {
       margin-bottom: 10px;
       font-weight: 700;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: #ffffffd1;
-      border: 1px solid #00000012;
+      padding: 9px 11px;
+      border-radius: 10px;
+      background: #123143b5;
+      border: 1px solid #8ee8dd39;
+      position: relative;
+      z-index: 1;
     }
 
     .votes {
       display: grid;
       gap: 8px;
+      position: relative;
+      z-index: 1;
     }
 
     .vote-row {
       display: grid;
-      grid-template-columns: 86px 1fr 44px;
+      grid-template-columns: 90px 1fr 44px;
       gap: 8px;
       align-items: center;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
+      color: #d9f4ff;
     }
 
     .bar {
       position: relative;
       height: 9px;
       border-radius: 999px;
-      background: #dfe8e6;
+      background: #183f52;
       overflow: hidden;
     }
 
     .bar > span {
       display: block;
       height: 100%;
-      background: linear-gradient(90deg, #0b7d77, #5ac3a2);
+      background: linear-gradient(90deg, #2de2bc, #66d6ff);
       width: 0;
       transition: width 260ms ease;
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 1080px) {
       .agents, .events, .wallets, .governance { grid-column: span 12; }
-      .kpis { grid-template-columns: repeat(3, 1fr); }
     }
 
-    @media (max-width: 620px) {
-      .kpis { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 760px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @keyframes rise {
+      from { transform: translateY(8px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
 
     @keyframes pulse {
       0%, 100% { transform: scale(1); opacity: 1; }
       50% { transform: scale(1.1); opacity: 0.72; }
+    }
+
+    @keyframes updatePulse {
+      0% { box-shadow: 0 0 0 0 #7db6ff38; }
+      100% { box-shadow: 0 0 0 14px #7db6ff00; }
     }
   </style>
 </head>
@@ -320,7 +437,7 @@ export function renderDashboardHtml(): string {
         <div class="kpi"><div class="label"><span class="icon">🧠</span>Agents</div><div class="value" id="kpi-agents">-</div></div>
         <div class="kpi"><div class="label"><span class="icon">👛</span>Wallets</div><div class="value" id="kpi-wallets">-</div></div>
         <div class="kpi"><div class="label"><span class="icon">📜</span>Events</div><div class="value" id="kpi-events">-</div></div>
-        <div class="kpi"><div class="label"><span class="icon">🪙</span>Total MON</div><div class="value" id="kpi-total-mon">-</div></div>
+        <div class="kpi"><div class="label"><span class="icon">🏦</span>Treasury MON</div><div class="value" id="kpi-total-mon">-</div></div>
         <div class="kpi"><div class="label"><span class="icon">⚡</span>Avg Energy</div><div class="value" id="kpi-avg-energy">-</div></div>
       </section>
 
@@ -331,7 +448,7 @@ export function renderDashboardHtml(): string {
         </div>
         <table>
           <thead>
-            <tr><th>ID</th><th>Location</th><th>Energy</th><th>Reputation</th><th>MON</th><th>Inventory</th></tr>
+            <tr><th>ID</th><th>Brain</th><th>Location</th><th>Energy</th><th>Reputation</th><th>MON</th><th>Inventory</th></tr>
           </thead>
           <tbody id="agents-body"></tbody>
         </table>
@@ -375,7 +492,7 @@ export function renderDashboardHtml(): string {
       return Number(v.toFixed(digits)).toString();
     }
 
-    function renderAgents(agents, wallets) {
+    function renderAgents(agents, wallets, events) {
       const body = document.getElementById("agents-body");
       const rows = Object.values(agents).map((agent) => {
         const inventoryEntries = Object.entries(agent.inventory);
@@ -384,8 +501,10 @@ export function renderDashboardHtml(): string {
           : "-";
         const wallet = wallets[agent.walletAddress];
         const mon = wallet ? formatNum(wallet.monBalance, 4) : "-";
+        const brain = detectAgentBrain(agent.id, events);
         return "<tr>" +
           "<td class=\\"mono agent-id\\" title=\\"" + agent.id + "\\">" + shortId(agent.id) + "</td>" +
+          "<td>" + brain.html + "</td>" +
           "<td><span class=\\"loc\\">" + iconForLocation(agent.location) + " " + agent.location + "</span></td>" +
           "<td class=\\"energy\\">" + agent.energy + "</td>" +
           "<td>" + agent.reputation + "</td>" +
@@ -393,7 +512,7 @@ export function renderDashboardHtml(): string {
           "<td>" + inventoryHtml + "</td>" +
           "</tr>";
       });
-      body.innerHTML = rows.join("") || "<tr><td colspan=\\"6\\">No agents</td></tr>";
+      body.innerHTML = rows.join("") || "<tr><td colspan=\\"7\\">No agents</td></tr>";
     }
 
     function renderLeaderboard(agents, wallets) {
@@ -429,13 +548,28 @@ export function renderDashboardHtml(): string {
 
     function renderEvents(events) {
       const list = document.getElementById("events-list");
-      const rows = events.slice(-20).reverse().map((event) =>
-        "<li>" +
-          "<div><span class=\\"event-time\\">" + new Date(event.at).toLocaleTimeString() + "</span><span class=\\"pill\\"><span class=\\"event-icon\\">" + iconForEvent(event.type) + "</span><span class=\\"event-type\\">" + event.type + "</span></span></div>" +
-          "<div><strong>" + event.agentId + "</strong> " + event.message + "</div>" +
+      const rows = events.slice(-20).reverse().map((event) => {
+        const reasonTag = event.type === "ai_reasoning"
+          ? "<span class=\\"reason-tag reason-ai\\">AI</span>"
+          : "";
+        return "<li class=\\"event-" + event.type + "\\">" +
+          "<div><span class=\\"event-time\\">" + new Date(event.at).toLocaleTimeString() + "</span><span class=\\"pill\\"><span class=\\"event-icon\\">" + iconForEvent(event.type) + "</span><span class=\\"event-type\\">" + event.type + "</span></span>" + reasonTag + "</div>" +
+          "<div class=\\"event-detail\\"><strong>" + event.agentId + "</strong> " + event.message + "</div>" +
         "</li>"
-      );
+      });
       list.innerHTML = rows.join("") || "<li>No events yet</li>";
+    }
+
+    function detectAgentBrain(agentId, events) {
+      const recent = events.slice(-80).filter((event) => event.agentId === agentId && event.type === "ai_reasoning");
+      if (recent.length === 0) {
+        return { label: "RULE", html: "<span class=\\"brain-badge brain-rule\\">Rule</span>" };
+      }
+      const last = recent[recent.length - 1];
+      if (String(last.message || "").startsWith("[AI]")) {
+        return { label: "AI", html: "<span class=\\"brain-badge brain-ai\\">AI</span>" };
+      }
+      return { label: "AI", html: "<span class=\\"brain-badge brain-ai\\">AI</span>" };
     }
 
     function iconForLocation(location) {
@@ -482,15 +616,18 @@ export function renderDashboardHtml(): string {
 
     function updateKpis(state) {
       const agentValues = Object.values(state.agents);
-      const wallets = Object.values(state.wallets);
-      const totalMon = wallets.reduce((sum, w) => sum + (Number(w.monBalance) || 0), 0);
+      const activeWallets = new Set(agentValues.map((agent) => agent.walletAddress));
+      const wallets = Object.entries(state.wallets);
+      const treasuryMon = wallets
+        .filter(([address]) => !activeWallets.has(address))
+        .reduce((sum, [, wallet]) => sum + (Number(wallet.monBalance) || 0), 0);
       const avgEnergy = agentValues.length ? agentValues.reduce((sum, a) => sum + a.energy, 0) / agentValues.length : 0;
 
       document.getElementById("kpi-tick").textContent = String(state.tick);
       document.getElementById("kpi-agents").textContent = String(Object.keys(state.agents).length);
-      document.getElementById("kpi-wallets").textContent = String(Object.keys(state.wallets).length);
+      document.getElementById("kpi-wallets").textContent = String(activeWallets.size);
       document.getElementById("kpi-events").textContent = String(state.events.length);
-      document.getElementById("kpi-total-mon").textContent = formatNum(totalMon, 4);
+      document.getElementById("kpi-total-mon").textContent = formatNum(treasuryMon, 4);
       document.getElementById("kpi-avg-energy").textContent = formatNum(avgEnergy, 2);
     }
 
@@ -514,11 +651,20 @@ export function renderDashboardHtml(): string {
     function renderState(statePayload) {
       const state = normalizeStatePayload(statePayload);
       updateKpis(state);
-      renderAgents(state.agents, state.wallets);
+      renderAgents(state.agents, state.wallets, state.events);
       renderLeaderboard(state.agents, state.wallets);
       renderEvents(state.events);
       updateGovernance(state.governance);
+      flashLiveCards();
       lastPoll = Date.now();
+    }
+
+    function flashLiveCards() {
+      const cards = document.querySelectorAll(".card");
+      cards.forEach((card) => {
+        card.classList.remove("pulse-update");
+        window.requestAnimationFrame(() => card.classList.add("pulse-update"));
+      });
     }
 
     async function poll(reason = "poll") {

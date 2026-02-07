@@ -77,9 +77,26 @@ if (brainMode === "rule") {
   autonomousServices.push(new AutoAgentService(store, actionEngine, autoAgentConfig));
 } else if (brainMode === "ai") {
   if (!process.env.OPENAI_API_KEY) {
-    console.warn("AGENT_BRAIN_MODE=ai requested, but OPENAI_API_KEY is missing. Falling back to rule mode.");
-    activeBrainMode = "rule";
-    autonomousServices.push(new AutoAgentService(store, actionEngine, autoAgentConfig));
+    console.warn("AGENT_BRAIN_MODE=ai requested, but OPENAI_API_KEY is missing. Running AI fallback reasoning mode.");
+    activeBrainMode = "ai(fallback)";
+    autonomousServices.push(
+      new AiEnabledAgentService(
+        store,
+        actionEngine,
+        {
+          async decide() {
+            throw new Error("OPENAI_API_KEY missing");
+          }
+        },
+        {
+          ...autoAgentConfig,
+          minActionDelayMs: aiMinActionDelayMs,
+          maxActionDelayMs: aiMaxActionDelayMs,
+          minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
+          maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12"))
+        }
+      )
+    );
   } else {
     autonomousServices.push(
       new AiEnabledAgentService(
@@ -103,9 +120,39 @@ if (brainMode === "rule") {
   }
 } else if (brainMode === "mixed") {
   if (!process.env.OPENAI_API_KEY) {
-    console.warn("AGENT_BRAIN_MODE=mixed requested without OPENAI_API_KEY; AI-designated agents will run rule fallback.");
-    activeBrainMode = "mixed(rule-fallback)";
-    autonomousServices.push(new AutoAgentService(store, actionEngine, autoAgentConfig));
+    if (aiAgentIds.size === 0) {
+      console.warn("AGENT_BRAIN_MODE=mixed requested without OPENAI_API_KEY and empty AI_AGENT_IDS; falling back to rule mode.");
+      activeBrainMode = "rule";
+      autonomousServices.push(new AutoAgentService(store, actionEngine, autoAgentConfig));
+    } else {
+      console.warn("AGENT_BRAIN_MODE=mixed requested without OPENAI_API_KEY; AI-designated agents will run AI fallback reasoning.");
+      activeBrainMode = "mixed(ai-fallback)";
+      autonomousServices.push(
+        new AutoAgentService(store, actionEngine, {
+          ...autoAgentConfig,
+          shouldControlAgent: (agentId) => !aiAgentIds.has(agentId)
+        })
+      );
+      autonomousServices.push(
+        new AiEnabledAgentService(
+          store,
+          actionEngine,
+          {
+            async decide() {
+              throw new Error("OPENAI_API_KEY missing");
+            }
+          },
+          {
+            ...autoAgentConfig,
+            minActionDelayMs: aiMinActionDelayMs,
+            maxActionDelayMs: aiMaxActionDelayMs,
+            minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
+            maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
+            shouldControlAgent: (agentId) => aiAgentIds.has(agentId)
+          }
+        )
+      );
+    }
   } else if (aiAgentIds.size === 0) {
     console.warn("AGENT_BRAIN_MODE=mixed requested, but AI_AGENT_IDS is empty. Falling back to rule mode.");
     activeBrainMode = "rule";

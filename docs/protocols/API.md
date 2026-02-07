@@ -73,13 +73,13 @@ Autonomous agent brain mode:
 - `AGENT_BRAIN_MODE=ai` (AI decides each autonomous action)
 - `AGENT_BRAIN_MODE=mixed` (AI for selected agents, rule-based for others)
 - AI mode settings:
-  - `OPENAI_API_KEY` (required)
+  - `OPENAI_API_KEY` (optional; when missing, AI mode uses deterministic AI-style fallback reasoning)
   - `AI_AGENT_MODEL` (default `gpt-5-nano`)
   - `AI_AGENT_BASE_URL` (optional custom Responses API endpoint)
   - `AI_AGENT_TIMEOUT_MS` (default `15000`)
   - `AI_AGENT_MAX_RECENT_EVENTS` (default `12`)
   - `AI_AGENT_IDS` (comma-separated ids used by AI in mixed mode)
-- `mixed` mode without `OPENAI_API_KEY` automatically falls back to rule actions for AI-designated ids.
+- `mixed` mode without `OPENAI_API_KEY` automatically uses deterministic AI-style fallback reasoning for AI-designated ids.
 
 ## Entry Request
 ```json

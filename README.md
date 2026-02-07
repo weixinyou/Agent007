@@ -100,7 +100,7 @@ Auto-agent simulation:
   - `AGENT_BRAIN_MODE=ai` (LLM decides each action)
   - `AGENT_BRAIN_MODE=mixed` (AI for selected agents, rules for others)
 - AI mode configuration:
-  - `OPENAI_API_KEY` (required when `AGENT_BRAIN_MODE=ai`)
+  - `OPENAI_API_KEY` (optional; when missing, AI mode runs deterministic AI-style fallback reasoning)
   - `AI_AGENT_MODEL` (default `gpt-5-nano`)
   - `AI_AGENT_BASE_URL` (optional; defaults to OpenAI Responses API URL)
   - `AI_AGENT_TIMEOUT_MS` (default `15000`)
@@ -112,7 +112,7 @@ Auto-agent simulation:
   - `raider` (aggressive pursuit/combat)
   - `governor` (policy voting and stabilization)
 - AI reasoning is emitted as `ai_reasoning` events and shown in dashboard Recent Events.
-- In `mixed` mode, if `OPENAI_API_KEY` is missing, AI-designated agents automatically run rule fallback (no outage).
+- In `mixed` mode, if `OPENAI_API_KEY` is missing, AI-designated agents automatically run deterministic AI-style fallback reasoning (no outage).
 
 Optional auth:
 - Set `AGENT007_API_KEY=your_key` to require `x-api-key` for all `POST` endpoints.
