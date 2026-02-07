@@ -32,8 +32,10 @@ const FUND_PER_AGENT_MON = Number(process.env.MON_TEST_FUND_PER_AGENT_MON ?? "0.
 const ENTRY_FEE_MON = Number(process.env.MON_TEST_ENTRY_FEE_MON ?? "0.0001");
 const MIN_CONFIRMATIONS = Number(process.env.MON_TEST_MIN_CONFIRMATIONS ?? "1");
 // Monad RPC occasionally returns estimateGas errors for plain value transfers.
-// We default to a safe gas limit to avoid relying on eth_estimateGas.
-const GAS_LIMIT = Number(process.env.MON_TEST_GAS_LIMIT ?? "120000");
+// We default to a realistic gas limit for simple value transfers (21k) plus headroom.
+// Important: for EIP-1559 txs, nodes may check `balance >= value + gasLimit * maxFeePerGas`,
+// so setting an excessively high gas limit can cause false "insufficient balance" failures.
+const GAS_LIMIT = Number(process.env.MON_TEST_GAS_LIMIT ?? "30000");
 
 const OUT_PAYMENTS = process.env.MON_TEST_OUT_PAYMENTS ?? "/tmp/onchain_demo_payments.json";
 const OUT_LOG = process.env.MON_TEST_SERVER_LOG ?? "/tmp/onchain_demo_server.log";
@@ -260,6 +262,27 @@ function castSendValue({ keystorePath, to, valueMon, nonce, gasLimit }) {
   return match[0];
 }
 
+async function waitTxConfirmed(txHash, label) {
+  const deadline = Date.now() + 120_000;
+  let lastErr = "";
+  while (Date.now() < deadline) {
+    const res = sh("cast", [
+      "receipt",
+      "--rpc-url",
+      RPC_URL,
+      "--confirmations",
+      String(MIN_CONFIRMATIONS),
+      "--rpc-timeout",
+      "45",
+      txHash,
+    ]);
+    if (res.status === 0) return;
+    lastErr = (res.stderr || "").trim().slice(0, 240);
+    await sleep(1500);
+  }
+  throw new Error(`tx not confirmed in time (${label}): ${txHash} ${lastErr ? `err=${lastErr}` : ""}`);
+}
+
 async function waitForHealth(timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -345,9 +368,20 @@ async function main() {
 
   // Fund agents for (entry fee + gas + actions).
   let nonce = castNoncePending(funderAddress);
+  const fundingTxs = [];
   for (const a of agents) {
-    castSendValue({ keystorePath: FUNDING_KEYSTORE, to: a.walletAddress, valueMon: FUND_PER_AGENT_MON, nonce, gasLimit: GAS_LIMIT });
+    const tx = castSendValue({
+      keystorePath: FUNDING_KEYSTORE,
+      to: a.walletAddress,
+      valueMon: FUND_PER_AGENT_MON,
+      nonce,
+      gasLimit: GAS_LIMIT,
+    });
+    fundingTxs.push({ agentId: a.agentId, walletAddress: a.walletAddress, txHash: tx });
     nonce += 1;
+  }
+  for (const t of fundingTxs) {
+    await waitTxConfirmed(t.txHash, `fund ${t.agentId}`);
   }
 
   // Start backend in mon-testnet mode.
@@ -410,6 +444,7 @@ async function main() {
   writeFileSync(OUT_PAYMENTS, JSON.stringify(payments, null, 2));
 
   for (const p of payments) {
+    await waitTxConfirmed(p.paymentTxHash, `entry fee ${p.agentId}`);
     // Poll confirmation, then submit /entry.
     let last = null;
     for (let i = 0; i < 24; i++) {
