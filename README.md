@@ -229,7 +229,9 @@ npm run dev
 ```
 - Optional smart-contract entry gate:
   - Contract source: `contracts/Agent007EntryGate.sol`
-  - Deploy script: `scripts/deploy-mon-entry-gate.sh`
+  - Deploy scripts:
+    - `scripts/deploy-mon-entry-gate.sh` (uses `forge create`)
+    - `scripts/deploy-mon-entry-gate-rpc.mjs` (RPC deployer; avoids `forge create` / `cast send` provider issues)
   - Required deploy env:
     - `MON_TEST_RPC_URL`
     - `MON_TEST_DEPLOYER_PRIVATE_KEY`
@@ -242,6 +244,14 @@ MON_TEST_DEPLOYER_PRIVATE_KEY=0x... \
 MON_TEST_TREASURY_ADDRESS=0xYourTreasuryAddress \
 MON_TEST_ENTRY_FEE_MON=0.1 \
 ./scripts/deploy-mon-entry-gate.sh
+```
+  - RPC deploy (recommended on macOS if `forge create` is flaky):
+```bash
+MON_TEST_RPC_URL=https://testnet-rpc.monad.xyz \
+MON_TEST_DEPLOYER_PRIVATE_KEY=0x... \
+MON_TEST_TREASURY_ADDRESS=0xYourTreasuryAddress \
+MON_TEST_ENTRY_FEE_MON=0.0001 \
+npm run deploy:mon-entry-gate:rpc
 ```
   - To verify contract-targeted entry payments in backend:
     - `MON_TEST_ENTRY_CONTRACT_ADDRESS=0xDeployedContract`

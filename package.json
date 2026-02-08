@@ -17,6 +17,7 @@
     "demo:stop": "node scripts/demo-stop.mjs",
     "verify:panel": "node scripts/verify-panel.mjs",
     "deploy:mon-entry-gate": "./scripts/deploy-mon-entry-gate.sh",
+    "deploy:mon-entry-gate:rpc": "node scripts/deploy-mon-entry-gate-rpc.mjs",
     "test:ai-agent": "node --loader ts-node/esm tests/integration/ai-agent-mode.test.ts",
     "test:ai-api": "node --loader ts-node/esm tests/integration/ai-agent-api.e2e.test.ts",
     "test:mixed-agent": "node --loader ts-node/esm tests/integration/mixed-agent-mode.test.ts",

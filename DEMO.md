@@ -83,6 +83,23 @@ Optional custom wallet address:
 npm run demo:add-ai -- ai_demo_5 wallet_ai_demo_5
 ```
 
+## Deploying a new EntryGate contract (0.0001 MON)
+If you want strict contract-gated entry but the existing deployed gate uses a higher fee (e.g. 0.1 MON),
+deploy a new gate with a lower fee and point the demo at it.
+
+Recommended deploy command (avoids `forge create` / `cast send` provider issues on some macOS setups):
+```bash
+MON_TEST_RPC_URL=https://testnet-rpc.monad.xyz \
+MON_TEST_DEPLOYER_PRIVATE_KEY=0x... \
+MON_TEST_TREASURY_ADDRESS=0x... \
+MON_TEST_ENTRY_FEE_MON=0.0001 \
+npm run deploy:mon-entry-gate:rpc
+```
+
+Then set:
+- `MON_TEST_ENTRY_CONTRACT_ADDRESS=<printed contractAddress>`
+- `MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR=0x42cccee4`
+
 ## 4) Stop demo server
 ```bash
 npm run demo:stop
