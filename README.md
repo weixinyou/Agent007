@@ -41,15 +41,91 @@ npm run demo:setup
 Open:
 - `http://localhost:3001/dashboard`
 
+## Two Demo Methods (Reviewer Guide)
+
+### Method A (Recommended): On-chain Monad testnet demo (proves MON-gated entry)
+1. Clone + install:
+```bash
+git clone https://github.com/weixinyou/Agent007.git
+cd Agent007
+npm install
+npm run build
+npm run test
+```
+
+2. Create `.env.local` (gitignored) with:
+```bash
+MON_TEST_FUNDING_PRIVATE_KEY=0xYOUR_TESTNET_FUNDING_PRIVATE_KEY
+MON_TEST_RPC_URL=https://testnet-rpc.monad.xyz
+```
+
+Optional strict contract-gated entry:
+```bash
+MON_TEST_ENTRY_CONTRACT_ADDRESS=0xYOUR_ENTRY_GATE_CONTRACT
+MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR=0x42cccee4
+```
+
+Optional live AI:
+```bash
+OPENAI_API_KEY=YOUR_OPENAI_KEY
+```
+
+3. Run one command:
+```bash
+npm run demo:setup
+```
+
+4. Open:
+- `http://localhost:3001/dashboard`
+
+5. Verify on-chain entry payments:
+- Check `/tmp/onchain_demo_payments.json` for the 3 `paymentTxHash` values.
+- Search each hash on a Monad testnet explorer.
+
+Reset the world (fresh run, not reload):
+```bash
+AGENT007_DEMO_RESET_WORLD=true npm run demo:setup
+```
+
+### Method B: Local simulation demo (fast UI/logic check, not on-chain)
+```bash
+OPENAI_API_KEY='' npm run demo:setup:local
+```
+Open:
+- `http://localhost:3001/dashboard`
+
+Stop either demo:
+```bash
+npm run demo:stop
+```
+
 Demo helpers:
 - `npm run demo:add-ai -- ai_demo_4`
 - `npm run demo:add-rule -- rule_demo_1`
 - `npm run demo:stop`
 
 By default, `npm run demo:setup` runs **on-chain Monad testnet** entry (real `paymentTxHash` verification).
+This is the path that satisfies the “MON token-gated entry” requirement.
+
+### On-Chain Demo Prereqs
+Create a `.env.local` (gitignored) with at least:
+```bash
+MON_TEST_FUNDING_PRIVATE_KEY=0x...   # funds new agent wallets and treasury float (Monad testnet)
+MON_TEST_RPC_URL=https://testnet-rpc.monad.xyz
+```
+
+Optional (recommended) for strict contract-gated entry:
+```bash
+MON_TEST_ENTRY_CONTRACT_ADDRESS=0x...    # Agent007EntryGate (payable)
+MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR=0x42cccee4  # payEntry(string)
+```
+
 For local-only demos:
 - fallback: `OPENAI_API_KEY='' npm run demo:setup:local`
 - live AI: `OPENAI_API_KEY='...' npm run demo:setup:ai`
+
+Important: `demo:setup:local` and `demo:setup:ai` are **wallet-mode simulations**. They are useful for fast UI/logic testing,
+but they do not prove on-chain payment gating.
 
 ## Deploy (Render)
 This repo includes `render.yaml` for one-click deployment.
@@ -84,6 +160,8 @@ Advanced world actions:
 - `attack` (energy damage + possible loot steal)
 - `vote` (politics/policy system: neutral/cooperative/aggressive)
 - `claim` (convert reputation to MON rewards)
+- `sell` (sell inventory to world market, treasury pays out)
+- `aid` (help another co-located agent, improves social dynamics)
 
 Reward tuning:
 - `MON_REWARD_PER_UNIT` controls MON payout per claim unit (default `0.00001`).
@@ -103,7 +181,7 @@ Auto-agent simulation:
   - `AGENT_BRAIN_MODE=mixed` (AI for selected agents, rules for others)
 - AI mode configuration:
   - `OPENAI_API_KEY` (optional; when missing, AI mode runs deterministic AI-style fallback reasoning)
-  - `AI_AGENT_MODEL` (default `gpt-5-nano`)
+  - `AI_AGENT_MODEL` (default `gpt-4.1-mini`)
   - `AI_AGENT_BASE_URL` (optional; defaults to OpenAI Responses API URL)
   - `AI_AGENT_TIMEOUT_MS` (server default `30000`; demo setup overrides to `15000`)
   - `AI_AGENT_MAX_RECENT_EVENTS` (default `12`)
@@ -170,3 +248,8 @@ MON_TEST_ENTRY_FEE_MON=0.1 \
     - `MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR=0x42cccee4` (`payEntry(string)`)
 - In `mon-testnet` mode, `/entry` must include `paymentTxHash`, and entry is granted only after on-chain success + confirmations.
 - You can poll confirmation first via `POST /entry/check` using the same payload.
+
+## Treasury vs Funding Wallet
+- **Funding wallet** (`MON_TEST_FUNDING_PRIVATE_KEY`): bootstrap faucet used by the demo script to fund new agent wallets and top up the treasury.
+- **World treasury** (`MON_TEST_TREASURY_ADDRESS`): the economic sink/source for the world (entry fees go here; market payouts come from here).
+The dashboard “Treasury MON” should refer to the world treasury, not the funding wallet.

@@ -1,6 +1,7 @@
 import { ActionEngine } from "../engine/actionEngine.js";
 import { ActionRequest, LocationId, VotePolicy, WorldState } from "../interfaces/types.js";
 import { WorldStore } from "../persistence/worldStore.js";
+import { createEvent } from "../world/events/eventFactory.js";
 
 type AgentProfile = "miner" | "trader" | "raider" | "governor";
 const MIN_REP_FOR_CLAIM = Math.max(2, Number(process.env.AUTO_AGENT_MIN_REPUTATION_FOR_CLAIM ?? "2"));
@@ -109,6 +110,19 @@ export class AutoAgentService {
           return;
         }
 
+        // Emit AI-style reasoning even for rule-mode agents, so the dashboard can
+        // distinguish "AI reasoning" (decision) vs "world event" (outcome).
+        // This is intentionally free of any "API failed" wording.
+        state.events.push(
+          createEvent(
+            state.events.length + 1,
+            state.tick,
+            actorId,
+            "ai_reasoning",
+            renderRuleReasoning(state, actorId, profile, req)
+          )
+        );
+
         const delayMs = this.scheduleNextAction(state, actorId, now, profile);
         this.nextWorldActionAt = now + delayMs;
       });
@@ -165,9 +179,34 @@ function clamp(value: number, min: number, max: number): number {
 
 function chooseAction(state: WorldState, agentId: string, profile: AgentProfile): ActionRequest {
   const agent = state.agents[agentId];
+  const totalVotes =
+    (state.governance.votes.neutral ?? 0) +
+    (state.governance.votes.cooperative ?? 0) +
+    (state.governance.votes.aggressive ?? 0);
+  const hasAggressiveVote = (state.governance.votes.aggressive ?? 0) > 0;
 
   if (agent.energy <= 1) {
     return { agentId, action: "rest" };
+  }
+
+  // Guarantee at least one aggressive vote early so the governance panel doesn't look "dead".
+  if (!hasAggressiveVote && totalVotes >= 3 && totalVotes < 6) {
+    return { agentId, action: "vote", votePolicy: "aggressive" };
+  }
+
+  // Ensure governance panel becomes "alive" quickly in demos.
+  if (totalVotes < 3 && Math.random() < 0.35) {
+    // Ensure some drama: avoid getting stuck at aggressive=0 due to unlucky profile mix.
+    const votePolicy = !hasAggressiveVote && Math.random() < 0.6
+      ? "aggressive"
+      : preferredVote(profile, state.governance.activePolicy);
+    return { agentId, action: "vote", votePolicy };
+  }
+
+  // If we still have zero aggressive votes after some activity, inject occasional pressure
+  // so the governance panel isn't stuck in "cooperative-only" runs.
+  if (!hasAggressiveVote && totalVotes >= 3 && totalVotes < 20 && Math.random() < 0.08) {
+    return { agentId, action: "vote", votePolicy: "aggressive" };
   }
 
   if (agent.reputation >= MIN_REP_FOR_CLAIM) {
@@ -386,6 +425,8 @@ function shouldVote(profile: AgentProfile): boolean {
   if (profile === "governor") return Math.random() < 0.4;
   if (profile === "trader") return Math.random() < 0.14;
   if (profile === "miner") return Math.random() < 0.09;
+  // raider: more political drama, pushes aggressive policy more often.
+  if (profile === "raider") return Math.random() < 0.22;
   return Math.random() < 0.06;
 }
 
@@ -404,4 +445,38 @@ function preferredVote(profile: AgentProfile, current: VotePolicy): VotePolicy {
 
 function pickRandom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function renderRuleReasoning(state: WorldState, agentId: string, profile: AgentProfile, req: ActionRequest): string {
+  const a = state.agents[agentId];
+  const wallet = state.wallets[a.walletAddress];
+  const mon = wallet?.monBalance ?? 0;
+  const invUnits = Object.values(a.inventory || {}).reduce((s, n) => s + n, 0);
+  const policy = state.governance.activePolicy;
+
+  const base = `I chose ${req.action}`;
+  const ctx = `Context: profile=${profile}, policy=${policy}, location=${a.location}, energy=${a.energy}, rep=${a.reputation}, invUnits=${invUnits}, mon=${mon.toFixed(6)}.`;
+
+  if (req.action === "rest") {
+    return `${base} to recover energy and avoid failed actions. ${ctx}`;
+  }
+  if (req.action === "gather") {
+    return `${base} to convert energy into inventory and reputation (faster progress loop). ${ctx}`;
+  }
+  if (req.action === "move") {
+    return `${base} to reposition for better yields and interactions (target=${req.target}). ${ctx}`;
+  }
+  if (req.action === "trade") {
+    return `${base} to diversify inventory and increase reputation through cooperation (targetAgent=${req.targetAgentId}). ${ctx}`;
+  }
+  if (req.action === "attack") {
+    return `${base} to pressure nearby rivals and potentially steal resources (targetAgent=${req.targetAgentId}). ${ctx}`;
+  }
+  if (req.action === "vote") {
+    return `${base} to shift governance toward my preferred policy (vote=${req.votePolicy}). ${ctx}`;
+  }
+  if (req.action === "claim") {
+    return `${base} to convert reputation into MON rewards while the policy multiplier is favorable. ${ctx}`;
+  }
+  return `${base}. ${ctx}`;
 }

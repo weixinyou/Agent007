@@ -56,7 +56,7 @@ const ACTION_RESPONSE_SCHEMA = {
   properties: {
     action: {
       type: "string",
-      enum: ["move", "gather", "rest", "trade", "attack", "vote", "claim"]
+      enum: ["move", "gather", "rest", "trade", "attack", "vote", "claim", "sell", "aid"]
     },
     target: {
       type: ["string", "null"],
@@ -108,7 +108,11 @@ export class AiClient {
           content:
             "You control one game agent. Return a single valid JSON action object. " +
             "Prefer actions likely to succeed now. Never include markdown. " +
-            "Reasoning must explain current constraints and why this action is best now."
+            "Reasoning must explain current constraints and why this action is best now. " +
+            "Politics: voting is optional, but occasionally voting is encouraged. Over time, try to avoid leaving any governance option at 0 votes for long (neutral/cooperative/aggressive), as long as it does not obviously harm the agent. " +
+            "Economy: if there are nearbyAgents at the same location and you have inventory, consider proposing trades sometimes (trade triggers an on-chain MON micro-transfer that is traceable). " +
+            "Market: if you are in town and have a lot of inventory, consider selling some items via action=sell (uses itemGive/qtyGive). Selling pays MON from the world treasury (on-chain in mon-testnet mode) and reduces inventory."
+            + " Aid: if another agent is co-located and appears low energy or recently attacked, consider helping via action=aid (uses targetAgentId and optionally itemGive/qtyGive)."
         },
         {
           role: "user",

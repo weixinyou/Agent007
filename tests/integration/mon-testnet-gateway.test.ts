@@ -29,6 +29,16 @@ const goodState: WorldState = {
   wallets: {},
   events: [],
   processedPaymentTxHashes: [],
+  telemetry: {
+    aiApi: { total: 0, success: 0, failed: 0 }
+  },
+  economy: {
+    marketPricesMon: { wood: 0.000001, herb: 0.0000015, ore: 0.000002, crystal: 0.000003, coin: 0.0000008 },
+    attackPenaltyMon: 0.000001,
+    tradeReputationReward: 1,
+    aidReputationReward: 2,
+    governor: { lastEventIndex: 0, lastRunAt: "1970-01-01T00:00:00.000Z" }
+  },
   governance: {
     activePolicy: "neutral",
     votes: {
@@ -62,7 +72,8 @@ const okGateway = new MonTestnetPaymentGateway(
     requiredConfirmations: 2,
     expectedChainIdHex: "0x279f",
     entryFeeMon: 2,
-    decimals: 18
+    decimals: 18,
+    worldInitialBalanceMon: 0.001
   }
 );
 
@@ -100,7 +111,8 @@ const pendingGateway = new MonTestnetPaymentGateway(
     treasuryAddress: "0x2222222222222222222222222222222222222222",
     requiredConfirmations: 2,
     entryFeeMon: 2,
-    decimals: 18
+    decimals: 18,
+    worldInitialBalanceMon: 0.001
   }
 );
 
@@ -139,7 +151,8 @@ const selectorGateway = new MonTestnetPaymentGateway(
     entryContractMethodSelector: payEntrySelector,
     requiredConfirmations: 2,
     entryFeeMon: 2,
-    decimals: 18
+    decimals: 18,
+    worldInitialBalanceMon: 0.001
   }
 );
 
@@ -173,7 +186,8 @@ const badSelectorGateway = new MonTestnetPaymentGateway(
     entryContractMethodSelector: payEntrySelector,
     requiredConfirmations: 2,
     entryFeeMon: 2,
-    decimals: 18
+    decimals: 18,
+    worldInitialBalanceMon: 0.001
   }
 );
 const badSelector = badSelectorGateway.chargeEntryFee(goodState, {

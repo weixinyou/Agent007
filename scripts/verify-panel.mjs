@@ -2,8 +2,9 @@
 import { copyFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import process from 'node:process';
 
-const ROOT = '/Users/wilsonyou/Documents/Agent007';
+const ROOT = process.cwd();
 const STATE_PATH = path.join(ROOT, 'data/state/world.json');
 const LOCK_PATH = `${STATE_PATH}.lock`;
 const SEED_PATH = path.join(ROOT, 'data/seeds/world.seed.json');

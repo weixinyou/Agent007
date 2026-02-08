@@ -10,6 +10,10 @@ Reviewer demo shortcut:
 Local-only demo shortcut:
 - `OPENAI_API_KEY='' npm run demo:setup:local`
 
+Important:
+- `npm run demo:setup` runs **on-chain Monad testnet** entry verification (`PAYMENT_BACKEND=mon-testnet`).
+- `npm run demo:setup:local` runs **local simulation only** (`PAYMENT_BACKEND=wallet`) and does not prove on-chain gating.
+
 ## Endpoints
 - `GET /health`: liveness probe
 - `GET /protocol`: API protocol metadata
@@ -77,7 +81,7 @@ Autonomous agent brain mode:
 - `AGENT_BRAIN_MODE=mixed` (AI for selected agents, rule-based for others)
 - AI mode settings:
   - `OPENAI_API_KEY` (optional; when missing, AI mode uses deterministic AI-style fallback reasoning)
-  - `AI_AGENT_MODEL` (default `gpt-5-nano`)
+  - `AI_AGENT_MODEL` (default `gpt-4.1-mini`)
   - `AI_AGENT_BASE_URL` (optional custom Responses API endpoint)
   - `AI_AGENT_TIMEOUT_MS` (server default `30000`; demo setup overrides to `15000`)
   - `AI_AGENT_MAX_RECENT_EVENTS` (default `12`)
@@ -127,7 +131,7 @@ Use `POST /entry/check` with the same payload to poll status before submitting f
 }
 ```
 
-Action values: `move`, `gather`, `rest`, `trade`, `attack`, `vote`, `claim`
+Action values: `move`, `gather`, `rest`, `trade`, `attack`, `vote`, `claim`, `sell`, `aid`
 
 Extra fields by action:
 - `move`: `target` (`town|forest|cavern`)
@@ -135,3 +139,15 @@ Extra fields by action:
 - `attack`: `targetAgentId`
 - `vote`: `votePolicy` (`neutral|cooperative|aggressive`)
 - `claim`: no extra fields
+- `sell`: `itemGive`, `qtyGive` (sell inventory to world market; town-only)
+- `aid`: `targetAgentId` and optionally `itemGive`, `qtyGive` (help another co-located agent)
+
+## Events
+World activity is observable via:
+- `GET /events` (SSE stream)
+- `GET /state` (poll)
+
+Common event types:
+- `entry`, `move`, `gather`, `rest`, `trade`, `attack`, `sell`, `aid`, `vote`, `claim`
+- `ai_reasoning` (decision rationale, used by both AI and rule-mode agents)
+- `world_governor` (the world “governor” adjusts prices/penalties/rewards based on recent activity)

@@ -8,6 +8,9 @@ export interface MonTestnetGatewayConfig {
   expectedChainIdHex?: string;
   entryFeeMon: number;
   decimals: number;
+  // In-world starting balance (off-chain credits) for UI/economy continuity.
+  // This is intentionally separate from the on-chain wallet balance.
+  worldInitialBalanceMon: number;
   entryContractAddress?: string;
   entryContractMethodSelector?: string;
 }
@@ -90,7 +93,10 @@ export class MonTestnetPaymentGateway implements PaymentGateway {
       ok: true,
       txHash,
       txId: txHash,
-      amountMon: this.config.entryFeeMon
+      amountMon: this.config.entryFeeMon,
+      // Keep the world economy consistent with wallet mode: we verify entry is paid on-chain,
+      // but the in-world "MON" shown in the dashboard is off-chain credit used by game mechanics.
+      balance: Math.max(0, this.config.worldInitialBalanceMon)
     };
   }
 

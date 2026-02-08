@@ -5,8 +5,22 @@ import process from 'node:process';
 
 const META_PATH = '/tmp/agent007-demo-meta.json';
 const DEFAULT_PORT = 3001;
+const MAX_WAIT_MS = 5000;
 
 function killPid(pid, signal) {
+  // On some macOS setups, `process.kill()` can be unreliable for detached Node listeners.
+  // Use the system `kill` command first, then fall back.
+  try {
+    const sig = signal === 'SIGKILL' ? '-9' : signal === 'SIGTERM' ? '-15' : '';
+    if (sig) {
+      const res = spawnSync('kill', [sig, String(pid)], { encoding: 'utf8' });
+      if (res.status === 0) {
+        return true;
+      }
+    }
+  } catch {
+    // fall through
+  }
   try {
     process.kill(pid, signal);
     return true;
@@ -39,13 +53,7 @@ function killPortListeners(port) {
     killPid(pid, 'SIGTERM');
   }
 
-  sleepMs(250);
-  const afterTerm = listenerPidsForPort(port);
-  for (const pid of afterTerm) {
-    killPid(pid, 'SIGKILL');
-  }
-
-  sleepMs(250);
+  sleepMs(350);
 
   return pids;
 }
@@ -77,12 +85,17 @@ for (const pid of killPortListeners(port)) {
   seenPids.add(pid);
 }
 
-// Final defensive pass in case shutdown is delayed.
-for (const pid of listenerPidsForPort(port)) {
-  seenPids.add(pid);
-  killPid(pid, 'SIGKILL');
+// Defensive loop: some node processes take a moment to fully exit (or may spawn a new listener).
+const startedWaitAt = Date.now();
+while (Date.now() - startedWaitAt < MAX_WAIT_MS) {
+  const listeners = listenerPidsForPort(port);
+  if (listeners.length === 0) break;
+  for (const pid of listeners) {
+    seenPids.add(pid);
+    killPid(pid, 'SIGKILL');
+  }
+  sleepMs(350);
 }
-sleepMs(200);
 
 rmSync(META_PATH, { force: true });
 const stillListening = listenerPidsForPort(port);

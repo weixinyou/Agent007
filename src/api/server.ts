@@ -4,6 +4,7 @@ import { AiClient } from "../agents/aiClient.js";
 import { AiEnabledAgentService } from "../agents/aiEnabledAgentService.js";
 import { AutoAgentService } from "../agents/autoAgentService.js";
 import { createPaymentGateway } from "../economy/createPaymentGateway.js";
+import { MonSettlement } from "../economy/monSettlement.js";
 import { WalletService } from "../economy/walletService.js";
 import { ActionEngine } from "../engine/actionEngine.js";
 import { createWorldStore } from "../persistence/createWorldStore.js";
@@ -11,6 +12,7 @@ import { SnapshotStore } from "../persistence/snapshotStore.js";
 import { AuthService } from "../services/authService.js";
 import { EntryService } from "../services/entryService.js";
 import { SignatureAuthService } from "../services/signatureAuthService.js";
+import { WorldGovernorService } from "../world/worldGovernorService.js";
 import { createAppServer } from "./app.js";
 
 const root = process.cwd();
@@ -26,7 +28,18 @@ const entryService = new EntryService(payment.gateway, new AgentRegistry());
 
 const store = createWorldStore(jsonStatePath, sqliteStatePath);
 store.initFromSeed(seedPath);
-const actionEngine = new ActionEngine();
+const settlement =
+  payment.paymentMode === "mon-testnet" && process.env.MON_TEST_TREASURY_PRIVATE_KEY
+    ? new MonSettlement({
+        rpcUrl: process.env.MON_TEST_RPC_URL ?? "https://testnet-rpc.monad.xyz",
+        treasuryPrivateKey: process.env.MON_TEST_TREASURY_PRIVATE_KEY,
+        agentPrivateKeysById: loadAgentPrivateKeys(process.env.MON_TEST_WALLETS_JSON),
+        gasLimit: Math.max(21000, Number(process.env.MON_TEST_GAS_LIMIT ?? "21000")),
+        gasPriceGwei: Math.max(1, Number(process.env.MON_TEST_PAYOUT_GAS_PRICE_GWEI ?? process.env.MON_TEST_GAS_PRICE_GWEI ?? "20")),
+        minConfirmations: Math.max(1, Number(process.env.MON_TEST_MIN_CONFIRMATIONS ?? "1"))
+      })
+    : undefined;
+const actionEngine = new ActionEngine(settlement);
 
 const server = createAppServer({
   store,
@@ -68,12 +81,21 @@ type AutonomousService = {
 const brainMode = (process.env.AGENT_BRAIN_MODE ?? "rule").toLowerCase();
 let activeBrainMode = brainMode;
 const autonomousServices: AutonomousService[] = [];
+const worldGovernor = new WorldGovernorService(store, {
+  enabled: (process.env.WORLD_GOVERNOR_ENABLED ?? "true").toLowerCase() !== "false",
+  intervalMs: Math.max(1000, Number(process.env.WORLD_GOVERNOR_INTERVAL_MS ?? "3500")),
+  windowEvents: Math.max(40, Number(process.env.WORLD_GOVERNOR_WINDOW_EVENTS ?? "140")),
+  minPriceMon: Math.max(0, Number(process.env.WORLD_GOVERNOR_MIN_PRICE_MON ?? "0.0000001")),
+  maxPriceMon: Math.max(0.000001, Number(process.env.WORLD_GOVERNOR_MAX_PRICE_MON ?? "0.01"))
+});
 const aiAgentIds = new Set(
   (process.env.AI_AGENT_IDS ?? "")
     .split(",")
     .map((id) => id.trim())
     .filter((id) => id.length > 0)
 );
+
+const emitAiCallEvents = (process.env.AI_EMIT_CALL_EVENTS ?? "false").toLowerCase() === "true";
 
 if (brainMode === "rule") {
   autonomousServices.push(new AutoAgentService(store, actionEngine, autoAgentConfig));
@@ -96,7 +118,7 @@ if (brainMode === "rule") {
           maxActionDelayMs: aiMaxActionDelayMs,
           minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
           maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
-          emitAiCallEvents: true
+          emitAiCallEvents
         }
       )
     );
@@ -107,7 +129,8 @@ if (brainMode === "rule") {
         actionEngine,
         new AiClient({
           apiKey: process.env.OPENAI_API_KEY,
-          model: process.env.AI_AGENT_MODEL ?? "gpt-5-nano",
+          // Use a broadly available default; can be overridden via AI_AGENT_MODEL.
+          model: process.env.AI_AGENT_MODEL ?? "gpt-4.1-mini",
           baseUrl: process.env.AI_AGENT_BASE_URL,
           timeoutMs: aiTimeoutMs,
           maxAttempts: Math.max(1, Number(process.env.AI_AGENT_MAX_ATTEMPTS ?? "3"))
@@ -118,7 +141,7 @@ if (brainMode === "rule") {
           maxActionDelayMs: aiMaxActionDelayMs,
           minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
           maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
-          emitAiCallEvents: false
+          emitAiCallEvents
         }
       )
     );
@@ -176,7 +199,7 @@ if (brainMode === "rule") {
         actionEngine,
         new AiClient({
           apiKey: process.env.OPENAI_API_KEY,
-          model: process.env.AI_AGENT_MODEL ?? "gpt-5-nano",
+          model: process.env.AI_AGENT_MODEL ?? "gpt-4.1-mini",
           baseUrl: process.env.AI_AGENT_BASE_URL,
           timeoutMs: aiTimeoutMs,
           maxAttempts: Math.max(1, Number(process.env.AI_AGENT_MAX_ATTEMPTS ?? "3"))
@@ -187,7 +210,7 @@ if (brainMode === "rule") {
             maxActionDelayMs: aiMaxActionDelayMs,
             minAiCallIntervalMs: Math.max(5_000, Number(process.env.AI_AGENT_MIN_CALL_INTERVAL_MS ?? "300000")),
             maxRecentEvents: Math.max(5, Number(process.env.AI_AGENT_MAX_RECENT_EVENTS ?? "12")),
-            emitAiCallEvents: true,
+            emitAiCallEvents,
             shouldControlAgent: (agentId) => aiAgentIds.has(agentId)
           }
         )
@@ -200,10 +223,13 @@ if (brainMode === "rule") {
 }
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-server.listen(port, () => {
+// Bind explicitly to IPv4 to avoid environments where IPv6-only listeners
+// make http://127.0.0.1 unreachable.
+server.listen(port, "0.0.0.0", () => {
   for (const service of autonomousServices) {
     service.start();
   }
+  worldGovernor.start();
   bootstrapDefaultAgents(entryService, actionEngine);
   console.log(`Agent007 API listening on http://localhost:${port} (brain mode: ${activeBrainMode})`);
 });
@@ -212,7 +238,25 @@ server.on("close", () => {
   for (const service of autonomousServices) {
     service.stop();
   }
+  worldGovernor.stop();
 });
+
+function loadAgentPrivateKeys(walletsJsonPath?: string): Record<string, string> | undefined {
+  if (!walletsJsonPath) return undefined;
+  try {
+    const raw = require("node:fs").readFileSync(walletsJsonPath, "utf8");
+    const j = JSON.parse(raw);
+    const out: Record<string, string> = {};
+    for (const a of j?.agents || []) {
+      if (a?.id && a?.privateKey) {
+        out[String(a.id)] = String(a.privateKey);
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function bootstrapDefaultAgents(entryService: EntryService, actionEngine: ActionEngine): void {
   const bootstrapEnabled = (process.env.BOOTSTRAP_DEFAULT_AGENTS ?? "false").toLowerCase() === "true";

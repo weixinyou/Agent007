@@ -15,3 +15,14 @@ examples/payments-results.json
 .DS_Store
 
 data/state/*.json
+
+.env
+.env.local
+demo/.env
+demo/.env.local
+
+# Demo artifacts (large media files)
+demo/*.aiff
+demo/*.mp3
+demo/*.wav
+demo/*.m4a

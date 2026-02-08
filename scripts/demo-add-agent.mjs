@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 
 const META_PATH = '/tmp/agent007-demo-meta.json';
-const ROOT = '/Users/wilsonyou/Documents/Agent007';
+const ROOT = process.cwd();
 
 async function main() {
   const type = process.argv[2];

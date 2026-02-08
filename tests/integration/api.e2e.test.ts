@@ -60,10 +60,17 @@ try {
   });
   assert.equal(check.statusCode, 400);
 
+  // Entry spawn is randomized; pick a valid adjacent move target.
+  const beforeState = await requestJson(port, "GET", "/state");
+  assert.equal(beforeState.statusCode, 200);
+  const beforeWorld = parseWorldState(beforeState.body);
+  const startLoc = beforeWorld.agents.http_agent.location;
+  const moveTarget = startLoc === "town" ? "forest" : startLoc === "forest" ? "town" : "forest";
+
   const action = await requestJson(port, "POST", "/action", {
     agentId: "http_agent",
     action: "move",
-    target: "forest"
+    target: moveTarget
   });
   assert.equal(action.statusCode, 200);
   assert.equal(action.body.ok, true);
@@ -71,7 +78,7 @@ try {
   const state = await requestJson(port, "GET", "/state");
   assert.equal(state.statusCode, 200);
   const world = parseWorldState(state.body);
-  assert.equal(world.agents.http_agent.location, "forest");
+  assert.equal(world.agents.http_agent.location, moveTarget);
 
   const dashboard = await requestText(port, "GET", "/dashboard");
   assert.equal(dashboard.statusCode, 200);

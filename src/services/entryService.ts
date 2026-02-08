@@ -36,6 +36,15 @@ export class EntryService {
       state.wallets[request.walletAddress].monBalance = receipt.balance;
     }
 
+    // Mirror entry fees into the world treasury wallet credits so the dashboard shows
+    // a consistent economy (fees go somewhere, not just disappear).
+    const treasuryAddress = worldTreasuryAddress();
+    if (treasuryAddress && typeof receipt.amountMon === "number" && receipt.amountMon > 0) {
+      const t = state.wallets[treasuryAddress] ?? { address: treasuryAddress, monBalance: 0 };
+      t.monBalance = Number((t.monBalance + receipt.amountMon).toFixed(6));
+      state.wallets[treasuryAddress] = t;
+    }
+
     state.tick += 1;
     const spawnLocation = randomSpawnLocation();
     state.agents[request.agentId] = this.agentRegistry.create(request.agentId, request.walletAddress, spawnLocation);
@@ -50,6 +59,13 @@ export class EntryService {
     );
     return { ok: true, balance: receipt.balance, agentId: request.agentId, txId: receipt.txId };
   }
+}
+
+function worldTreasuryAddress(): string | null {
+  const addr = (process.env.MON_TEST_TREASURY_ADDRESS ?? "").trim();
+  if (addr.length > 0) return addr;
+  // Wallet/provider demo modes: use a stable pseudo-address so it shows up in state.wallets.
+  return "world_treasury";
 }
 
 function randomSpawnLocation(): LocationId {

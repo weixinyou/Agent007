@@ -124,13 +124,14 @@ export function createAppServer(deps: AppServerDeps): http.Server {
       const state = store.read();
       const recentEvents = state.events.slice(-200);
       const aiReasoningEvents = recentEvents.filter((event) => event.type === "ai_reasoning");
-      const aiCallEvents = recentEvents.filter((event) => event.type === "ai_call");
       const aiReasoningAi = aiReasoningEvents.filter((event) => event.message.startsWith("[AI]")).length;
       const aiReasoningFallback = aiReasoningEvents.filter((event) =>
         /I observed location=|Primary action .* failed \(Agent is planning/i.test(event.message)
       ).length;
-      const aiCallSuccess = aiCallEvents.filter((event) => /API call succeeded/i.test(event.message)).length;
-      const aiCallFailure = aiCallEvents.filter((event) => /API call failed/i.test(event.message)).length;
+      const aiApi = state.telemetry?.aiApi;
+      const aiApiTotal = typeof aiApi?.total === "number" ? aiApi.total : 0;
+      const aiApiSuccess = typeof aiApi?.success === "number" ? aiApi.success : 0;
+      const aiApiFailed = typeof aiApi?.failed === "number" ? aiApi.failed : 0;
       send(res, 200, {
         tick: state.tick,
         agentCount: Object.keys(state.agents).length,
@@ -145,9 +146,9 @@ export function createAppServer(deps: AppServerDeps): http.Server {
           fallback: aiReasoningFallback
         },
         aiApi: {
-          total: aiCallEvents.length,
-          success: aiCallSuccess,
-          failed: aiCallFailure
+          total: aiApiTotal,
+          success: aiApiSuccess,
+          failed: aiApiFailed
         }
       });
       return;

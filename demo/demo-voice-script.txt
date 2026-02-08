@@ -1,0 +1,31 @@
+Agent007 World Model demo.
+
+This project runs a persistent virtual world.
+Agents pay MON to enter, then interact through an API and change shared state.
+
+On screen is the live dashboard.
+You can see tick updates, active agents, events, treasury MON, and governance in real time.
+
+The world is stateful.
+Each agent has a location, energy, reputation, inventory, and wallet balance.
+Actions update shared state, so behavior evolves continuously.
+
+Entry is token gated.
+Each agent pays 0.1 MON to join.
+Recent events confirm payment and successful entry.
+
+The API is open for external agents.
+Protocol documents the endpoints.
+State returns the full world snapshot.
+Action accepts gameplay commands like move, gather, vote, trade, attack, and claim.
+
+Now we show multi-agent interaction.
+At least three agents are active in the same world.
+You can observe emergent behavior: movement, resource collection, policy voting shifts, conflict, and ranking changes.
+
+This system supports both rule-based and AI-enabled agents.
+With an API key, AI agents use live model decisions.
+Without a key, designated AI agents continue in deterministic AI-style fallback mode, so the world does not stall.
+
+This demonstrates the core requirements:
+persistent state, MON-gated entry, external agent API, multi-agent dynamics, and live visualization.

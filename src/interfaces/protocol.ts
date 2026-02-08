@@ -5,7 +5,7 @@ export const ENTRY_FEE_MON = Number.isFinite(rawEntryFeeMon) && rawEntryFeeMon >
 export const API_PROTOCOL = {
   version: "v1",
   entryFeeMon: ENTRY_FEE_MON,
-  actions: ["move", "gather", "rest", "trade", "attack", "vote", "claim"] as const,
+  actions: ["move", "gather", "rest", "trade", "attack", "vote", "claim", "sell", "aid"] as const,
   auth: {
     apiKey: {
       mode: "optional-header",

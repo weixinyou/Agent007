@@ -1,5 +1,5 @@
 export type LocationId = "town" | "forest" | "cavern";
-export type ActionType = "move" | "gather" | "rest" | "trade" | "attack" | "vote" | "claim";
+export type ActionType = "move" | "gather" | "rest" | "trade" | "attack" | "vote" | "claim" | "sell" | "aid";
 export type VotePolicy = "neutral" | "cooperative" | "aggressive";
 
 export interface Wallet {
@@ -31,6 +31,26 @@ export interface WorldState {
   wallets: Record<string, Wallet>;
   events: WorldEvent[];
   processedPaymentTxHashes: string[];
+  telemetry?: {
+    aiApi?: {
+      total: number;
+      success: number;
+      failed: number;
+      lastError?: string;
+      lastOkAt?: string;
+      lastFailAt?: string;
+    };
+  };
+  economy: {
+    marketPricesMon: Record<string, number>;
+    attackPenaltyMon: number;
+    tradeReputationReward: number;
+    aidReputationReward: number;
+    governor: {
+      lastEventIndex: number;
+      lastRunAt: string;
+    };
+  };
   governance: {
     activePolicy: VotePolicy;
     votes: Record<VotePolicy, number>;
@@ -64,7 +84,7 @@ export class ValidationError extends Error {
 
 const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const LOCATIONS: LocationId[] = ["town", "forest", "cavern"];
-const ACTIONS: ActionType[] = ["move", "gather", "rest", "trade", "attack", "vote", "claim"];
+const ACTIONS: ActionType[] = ["move", "gather", "rest", "trade", "attack", "vote", "claim", "sell", "aid"];
 const POLICIES: VotePolicy[] = ["neutral", "cooperative", "aggressive"];
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -121,7 +141,7 @@ export function parseActionRequest(input: unknown): ActionRequest {
   }
 
   if (typeof action !== "string" || !ACTIONS.includes(action as ActionType)) {
-    fail("action must be one of: move, gather, rest");
+    fail("action must be one of: move, gather, rest, trade, attack, vote, claim, sell, aid");
   }
   const safeAction = action as ActionType;
 
@@ -161,6 +181,29 @@ export function parseActionRequest(input: unknown): ActionRequest {
     return { agentId, action: safeAction, votePolicy: votePolicy as VotePolicy };
   }
 
+  if (safeAction === "sell") {
+    // `sell` uses itemGive/qtyGive to indicate which item is sold to the world market.
+    if (typeof itemGive !== "string" || itemGive.length < 1) fail("itemGive is required for sell");
+    if (typeof qtyGive !== "number" || !Number.isInteger(qtyGive) || qtyGive <= 0) {
+      fail("qtyGive must be a positive integer for sell");
+    }
+    return { agentId, action: safeAction, itemGive, qtyGive };
+  }
+
+  if (safeAction === "aid") {
+    if (typeof targetAgentId !== "string" || targetAgentId.length < 1) {
+      fail("targetAgentId is required for aid");
+    }
+    // Optional: itemGive/qtyGive indicate which item is given to the target.
+    if (itemGive !== undefined && (typeof itemGive !== "string" || itemGive.length < 1)) {
+      fail("itemGive must be a non-empty string for aid");
+    }
+    if (qtyGive !== undefined && (typeof qtyGive !== "number" || !Number.isInteger(qtyGive) || qtyGive <= 0)) {
+      fail("qtyGive must be a positive integer for aid");
+    }
+    return { agentId, action: safeAction, targetAgentId, itemGive, qtyGive };
+  }
+
   if (target !== undefined) {
     if (typeof target !== "string" || !LOCATIONS.includes(target as LocationId)) {
       fail("target must be one of: town, forest, cavern");
@@ -179,6 +222,8 @@ export function parseWorldState(input: unknown): WorldState {
   const wallets = input.wallets;
   const events = input.events;
   const processedPaymentTxHashes = input.processedPaymentTxHashes;
+  const telemetry = input.telemetry;
+  const economy = input.economy;
   const governance = input.governance;
 
   if (typeof tick !== "number" || !Number.isInteger(tick) || tick < 0) {
@@ -190,6 +235,12 @@ export function parseWorldState(input: unknown): WorldState {
   if (!Array.isArray(events)) fail("world.events must be an array");
   if (processedPaymentTxHashes !== undefined && !Array.isArray(processedPaymentTxHashes)) {
     fail("world.processedPaymentTxHashes must be an array");
+  }
+  if (telemetry !== undefined && !isObject(telemetry)) {
+    fail("world.telemetry must be an object");
+  }
+  if (economy !== undefined && !isObject(economy)) {
+    fail("world.economy must be an object");
   }
   if (governance !== undefined && !isObject(governance)) {
     fail("world.governance must be an object");
@@ -290,12 +341,79 @@ export function parseWorldState(input: unknown): WorldState {
     }
   }
 
+  const typedTelemetry: WorldState["telemetry"] = {};
+  if (isObject(telemetry)) {
+    const aiApi = telemetry.aiApi;
+    if (isObject(aiApi)) {
+      const total = aiApi.total;
+      const success = aiApi.success;
+      const failed = aiApi.failed;
+      const lastError = aiApi.lastError;
+      const lastOkAt = aiApi.lastOkAt;
+      const lastFailAt = aiApi.lastFailAt;
+      typedTelemetry.aiApi = {
+        total: typeof total === "number" && Number.isInteger(total) && total >= 0 ? total : 0,
+        success: typeof success === "number" && Number.isInteger(success) && success >= 0 ? success : 0,
+        failed: typeof failed === "number" && Number.isInteger(failed) && failed >= 0 ? failed : 0,
+        lastError: typeof lastError === "string" && lastError.trim().length > 0 ? lastError.slice(0, 240) : undefined,
+        lastOkAt: typeof lastOkAt === "string" && isIsoDate(lastOkAt) ? lastOkAt : undefined,
+        lastFailAt: typeof lastFailAt === "string" && isIsoDate(lastFailAt) ? lastFailAt : undefined
+      };
+    }
+  }
+
+  const typedEconomy: WorldState["economy"] = {
+    marketPricesMon: {
+      wood: 0.000001,
+      herb: 0.0000015,
+      ore: 0.000002,
+      crystal: 0.000003,
+      coin: 0.0000008
+    },
+    attackPenaltyMon: 0.000001,
+    tradeReputationReward: 1,
+    aidReputationReward: 2,
+    governor: {
+      lastEventIndex: 0,
+      lastRunAt: new Date(0).toISOString()
+    }
+  };
+  if (isObject(economy)) {
+    const mp = economy.marketPricesMon;
+    if (isObject(mp)) {
+      for (const [k, v] of Object.entries(mp)) {
+        if (typeof v === "number" && Number.isFinite(v) && v >= 0) {
+          typedEconomy.marketPricesMon[String(k).toLowerCase()] = v;
+        }
+      }
+    }
+    const ap = economy.attackPenaltyMon;
+    if (typeof ap === "number" && Number.isFinite(ap) && ap >= 0) typedEconomy.attackPenaltyMon = ap;
+    const tr = economy.tradeReputationReward;
+    if (typeof tr === "number" && Number.isFinite(tr) && tr >= 0) typedEconomy.tradeReputationReward = tr;
+    const ar = economy.aidReputationReward;
+    if (typeof ar === "number" && Number.isFinite(ar) && ar >= 0) typedEconomy.aidReputationReward = ar;
+    const gov = economy.governor;
+    if (isObject(gov)) {
+      const lastEventIndex = gov.lastEventIndex;
+      const lastRunAt = gov.lastRunAt;
+      if (typeof lastEventIndex === "number" && Number.isInteger(lastEventIndex) && lastEventIndex >= 0) {
+        typedEconomy.governor.lastEventIndex = lastEventIndex;
+      }
+      if (typeof lastRunAt === "string" && isIsoDate(lastRunAt)) {
+        typedEconomy.governor.lastRunAt = lastRunAt;
+      }
+    }
+  }
+
   return {
     tick,
     agents: typedAgents,
     wallets: typedWallets,
     events: typedEvents,
     processedPaymentTxHashes: typedProcessedPaymentTxHashes,
+    telemetry: typedTelemetry,
+    economy: typedEconomy,
     governance: typedGovernance
   };
 }

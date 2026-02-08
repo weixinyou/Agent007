@@ -56,7 +56,8 @@ export class SqliteStateStore implements WorldStore {
   read(): WorldState {
     const row = this.getRow();
     if (!row) {
-      return {
+      // Use parser to populate defaults (economy/telemetry) for empty DBs.
+      return parseWorldState({
         tick: 0,
         agents: {},
         wallets: {},
@@ -70,7 +71,7 @@ export class SqliteStateStore implements WorldStore {
             aggressive: 0
           }
         }
-      };
+      });
     }
 
     return this.parsePayload(row.payload);

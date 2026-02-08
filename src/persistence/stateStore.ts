@@ -9,6 +9,29 @@ const DEFAULT_STATE: WorldState = {
   wallets: {},
   events: [],
   processedPaymentTxHashes: [],
+  telemetry: {
+    aiApi: {
+      total: 0,
+      success: 0,
+      failed: 0
+    }
+  },
+  economy: {
+    marketPricesMon: {
+      wood: 0.000001,
+      herb: 0.0000015,
+      ore: 0.000002,
+      crystal: 0.000003,
+      coin: 0.0000008
+    },
+    attackPenaltyMon: 0.000001,
+    tradeReputationReward: 1,
+    aidReputationReward: 2,
+    governor: {
+      lastEventIndex: 0,
+      lastRunAt: new Date(0).toISOString()
+    }
+  },
   governance: {
     activePolicy: "neutral",
     votes: {

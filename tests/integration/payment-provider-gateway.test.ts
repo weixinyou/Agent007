@@ -3,6 +3,7 @@ import { ProviderPaymentGateway } from "../../src/economy/providerPaymentGateway
 import { ProviderPaymentClient } from "../../src/economy/providerPaymentClient.js";
 import { WalletService } from "../../src/economy/walletService.js";
 import { WorldState } from "../../src/interfaces/types.js";
+import { ENTRY_FEE_MON } from "../../src/interfaces/protocol.js";
 
 const baseState: WorldState = {
   tick: 1,
@@ -12,6 +13,16 @@ const baseState: WorldState = {
   },
   events: [],
   processedPaymentTxHashes: [],
+  telemetry: {
+    aiApi: { total: 0, success: 0, failed: 0 }
+  },
+  economy: {
+    marketPricesMon: { wood: 0.000001, herb: 0.0000015, ore: 0.000002, crystal: 0.000003, coin: 0.0000008 },
+    attackPenaltyMon: 0.000001,
+    tradeReputationReward: 1,
+    aidReputationReward: 2,
+    governor: { lastEventIndex: 0, lastRunAt: "1970-01-01T00:00:00.000Z" }
+  },
   governance: {
     activePolicy: "neutral",
     votes: {
@@ -39,7 +50,7 @@ const okGateway = new ProviderPaymentGateway(new WalletService(), new AcceptClie
 const ok = okGateway.chargeEntryFee(successState, { agentId: "a1", walletAddress: "w1" });
 assert.equal(ok.ok, true);
 assert.equal(ok.txId, "provider_tx_ok");
-assert.equal(successState.wallets.w1.monBalance, 3);
+assert.equal(Number(successState.wallets.w1.monBalance.toFixed(6)), Number((5 - ENTRY_FEE_MON).toFixed(6)));
 
 const failState = structuredClone(baseState);
 const failGateway = new ProviderPaymentGateway(new WalletService(), new RejectClient());

@@ -251,12 +251,14 @@ export function renderDashboardHtml(): string {
     .event-gather { border-left-color: #4de3ae; }
     .event-trade { border-left-color: #82fff0; }
     .event-attack { border-left-color: #ff8e76; }
+    .event-sell { border-left-color: #ffd479; }
     .event-vote { border-left-color: #c58bff; }
     .event-claim { border-left-color: #f6d16e; }
     .event-rest { border-left-color: #9de6f2; }
     .event-faucet { border-left-color: #6ec7ff; }
     .event-ai_reasoning { border-left-color: #86a3ff; }
     .event-ai_call { border-left-color: #a48bff; }
+    .event-world_governor { border-left-color: #2de2bc; }
 
     .event-detail {
       margin-top: 4px;
@@ -493,6 +495,21 @@ export function renderDashboardHtml(): string {
       return Number(v.toFixed(digits)).toString();
     }
 
+    function formatMon(v) {
+      // MON values can be tiny in on-chain mode (0.0001 entry fee).
+      return formatNum(v, 6);
+    }
+
+    function displayAgentId(id) {
+      // UI alias only (API ids remain unchanged).
+      if (typeof id !== "string") return String(id || "");
+      const m = id.match(/_(1|2|3)$/);
+      if (!m) return id;
+      const n = Number(m[1]);
+      if (n >= 1 && n <= 3) return "AI_agent_0" + String(n);
+      return id;
+    }
+
     function renderAgents(agents, wallets, events) {
       const body = document.getElementById("agents-body");
       const rows = Object.values(agents).map((agent) => {
@@ -501,10 +518,10 @@ export function renderDashboardHtml(): string {
           ? "<div class=\\"inv-wrap\\">" + inventoryEntries.map(([k, v]) => "<span class=\\"inv-item mono\\">" + k + ":" + v + "</span>").join("") + "</div>"
           : "-";
         const wallet = wallets[agent.walletAddress];
-        const mon = wallet ? formatNum(wallet.monBalance, 4) : "-";
+        const mon = wallet ? formatMon(wallet.monBalance) : "-";
         const brain = detectAgentBrain(agent.id, events);
         return "<tr>" +
-          "<td class=\\"mono agent-id\\" title=\\"" + agent.id + "\\">" + shortId(agent.id) + "</td>" +
+          "<td class=\\"mono agent-id\\" title=\\"" + agent.id + "\\">" + shortId(displayAgentId(agent.id)) + "</td>" +
           "<td>" + brain.html + "</td>" +
           "<td><span class=\\"loc\\">" + iconForLocation(agent.location) + " " + agent.location + "</span></td>" +
           "<td class=\\"energy\\">" + agent.energy + "</td>" +
@@ -522,6 +539,7 @@ export function renderDashboardHtml(): string {
         const mon = wallets[agent.walletAddress]?.monBalance ?? 0;
         return {
           id: agent.id,
+          idDisplay: displayAgentId(agent.id),
           mon,
           reputation: agent.reputation,
           energy: agent.energy
@@ -537,8 +555,8 @@ export function renderDashboardHtml(): string {
       const rows = rowsData.map((row, idx) =>
         "<tr>" +
           "<td class=\\"mono\\">" + (idx === 0 ? "<span class=\\"leader-crown\\">👑</span>" : "") + "#" + (idx + 1) + "</td>" +
-          "<td class=\\"mono\\">" + row.id + "</td>" +
-          "<td class=\\"mono\\">" + formatNum(row.mon, 4) + "</td>" +
+          "<td class=\\"mono\\">" + row.idDisplay + "</td>" +
+          "<td class=\\"mono\\">" + formatMon(row.mon) + "</td>" +
           "<td>" + row.reputation + "</td>" +
           "<td class=\\"energy\\">" + row.energy + "</td>" +
         "</tr>"
@@ -635,12 +653,15 @@ export function renderDashboardHtml(): string {
       if (type === "gather") return "⛏";
       if (type === "trade") return "🤝";
       if (type === "attack") return "⚔";
+      if (type === "sell") return "🛒";
+      if (type === "aid") return "🫱";
       if (type === "vote") return "🗳";
       if (type === "claim") return "🏦";
       if (type === "rest") return "🛌";
       if (type === "faucet") return "💧";
       if (type === "ai_reasoning") return "🤖";
       if (type === "ai_call") return "🧠";
+      if (type === "world_governor") return "🏛";
       return "•";
     }
 
@@ -678,7 +699,7 @@ export function renderDashboardHtml(): string {
       document.getElementById("kpi-agents").textContent = String(Object.keys(state.agents).length);
       document.getElementById("kpi-wallets").textContent = String(activeWallets.size);
       document.getElementById("kpi-events").textContent = String(state.events.length);
-      document.getElementById("kpi-total-mon").textContent = formatNum(treasuryMon, 4);
+      document.getElementById("kpi-total-mon").textContent = formatMon(treasuryMon);
       document.getElementById("kpi-avg-energy").textContent = formatNum(avgEnergy, 2);
     }
 

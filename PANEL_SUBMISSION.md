@@ -31,9 +31,9 @@
 
 ### Bonus Coverage
 - Economy / earn-back MON:
-  - `claim` rewards in `actionEngine`
+  - `claim` rewards and `sell` market payouts in `actionEngine`
 - Complex mechanics:
-  - politics (`vote`), trade (`trade`), combat (`attack`), exploration (`move` + location yields)
+  - politics (`vote`), trade (`trade`), combat (`attack`), exploration (`move` + location yields), social helping (`aid`)
 - Visualization:
   - `GET /dashboard`, `GET /events`, `GET /metrics`
 
@@ -44,6 +44,10 @@
 - Backend verification support env:
   - `MON_TEST_ENTRY_CONTRACT_ADDRESS`
   - `MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR=0x42cccee4` (`payEntry(string)`)
+
+On-chain demo note:
+- `npm run demo:setup` will accept entry payments to the **treasury address** by default.
+- If you set `MON_TEST_ENTRY_CONTRACT_ADDRESS`, entry payments must be sent to the contract (and will be rejected otherwise).
 
 ## Fast Reviewer Commands
 
@@ -81,3 +85,5 @@ npm run demo:setup:ai
 ## Operational Note
 - If OpenAI quota/rate-limit is hit, AI-designated agents automatically use deterministic fallback and continue operating.
 - Dashboard clearly labels reasoning source as `[AI]` or `[FALLBACK]`.
+- World dynamics are kept interesting by a background **World Governor** (`world_governor` events) that adjusts
+  market prices and attack penalties based on recent activity (supply/demand + conflict response).
