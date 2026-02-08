@@ -156,8 +156,10 @@ function main() {
     throw new Error("forge inspect returned empty bytecode");
   }
   const feeWei = toWeiString(ENTRY_FEE_MON);
-  const ctorArgs = runMust("cast", ["abi-encode", "constructor(address,uint256)", TREASURY, feeWei]).replace(/^0x/, "");
+  const ctorSig = "constructor(address,uint256)";
+  const ctorArgs = runMust("cast", ["abi-encode", ctorSig, TREASURY, feeWei]).replace(/^0x/, "");
   const createData = `0x${bytecode}${ctorArgs}`;
+  const createCode = `0x${bytecode}`;
 
   // Estimate deployment gas (best-effort; fall back to env).
   let gasLimit = Math.max(400_000, Math.floor(GAS_LIMIT_ENV));
@@ -180,8 +182,6 @@ function main() {
       const pk = DEPLOYER_PK.startsWith("0x") ? DEPLOYER_PK : `0x${DEPLOYER_PK}`;
       const rawTx = runMust("cast", [
         "mktx",
-        "--create",
-        createData,
         "--legacy",
         "--chain",
         String(chainId),
@@ -192,7 +192,12 @@ function main() {
         "--gas-price",
         `${gasPriceGwei}gwei`,
         "--private-key",
-        pk
+        pk,
+        "--create",
+        createCode,
+        ctorSig,
+        TREASURY,
+        feeWei
       ]);
 
       const txHash = rpcCallSync("eth_sendRawTransaction", [rawTx]);
