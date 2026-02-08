@@ -19,6 +19,9 @@ This will:
 
 Prereq: `.env.local` must include `MON_TEST_FUNDING_PRIVATE_KEY=0x...`.
 
+If you set `MON_TEST_ENTRY_CONTRACT_ADDRESS`, the demo runner will attempt to read `entryFeeWei()` from the contract.
+If the contract requires a higher fee than `MON_TEST_ENTRY_FEE_MON`, the runner will automatically bump the fee to avoid reverts.
+
 Open dashboard:
 - `http://localhost:3001/dashboard`
 

@@ -59,7 +59,7 @@ const DEMO_META_PATH = process.env.AGENT007_DEMO_META_PATH ?? "/tmp/agent007-dem
 
 // Defaults tuned for mass testing: small funding + tiny entry fee.
 const FUND_PER_AGENT_MON = Number(process.env.MON_TEST_FUND_PER_AGENT_MON ?? "0.001");
-const ENTRY_FEE_MON = Number(process.env.MON_TEST_ENTRY_FEE_MON ?? "0.0001");
+const ENTRY_FEE_MON_RAW = Number(process.env.MON_TEST_ENTRY_FEE_MON ?? "0.0001");
 const MIN_CONFIRMATIONS = Number(process.env.MON_TEST_MIN_CONFIRMATIONS ?? "1");
 const TREASURY_FLOAT_MON = Number(process.env.MON_TEST_TREASURY_FLOAT_MON ?? "0.001");
 
@@ -67,6 +67,26 @@ const GAS_LIMIT_VALUE_TX = Number(process.env.MON_TEST_GAS_LIMIT ?? "21000");
 const ENTRY_CONTRACT_ADDRESS = (process.env.MON_TEST_ENTRY_CONTRACT_ADDRESS ?? "").trim();
 const ENTRY_CONTRACT_METHOD = (process.env.MON_TEST_ENTRY_CONTRACT_METHOD ?? "payEntry(string)").trim();
 const ENTRY_CONTRACT_GAS_LIMIT = Number(process.env.MON_TEST_ENTRY_CONTRACT_GAS_LIMIT ?? "150000");
+const DEFAULT_ENTRY_METHOD_SELECTOR = "0x42cccee4"; // payEntry(string)
+const ENTRY_FEE_WEI_SELECTOR = "0x5e511ba2"; // entryFeeWei()
+
+function weiToMon(wei, decimals = 18) {
+  const d = BigInt(decimals);
+  const whole = wei / 10n ** d;
+  const frac = wei % 10n ** d;
+  const fracStr = frac.toString().padStart(Number(d), "0").replace(/0+$/, "");
+  return Number(fracStr.length ? `${whole.toString()}.${fracStr}` : whole.toString());
+}
+
+function hexToBigInt(hex) {
+  if (!hex || hex === "0x") return 0n;
+  return BigInt(hex);
+}
+
+async function readContractEntryFeeWei(contract) {
+  const result = await rpcCall("eth_call", [{ to: contract, data: ENTRY_FEE_WEI_SELECTOR }, "latest"]);
+  return hexToBigInt(result);
+}
 
 function must(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -299,10 +319,34 @@ async function main() {
 
   const wallets = await ensureWalletArtifacts();
   const baseGasPriceGwei = await pickGasPriceGwei();
+  let entryFeeMon = ENTRY_FEE_MON_RAW;
+  let entryMethodSelector = (process.env.MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR ?? "").trim();
+  if (ENTRY_CONTRACT_ADDRESS) {
+    if (!entryMethodSelector) {
+      entryMethodSelector = DEFAULT_ENTRY_METHOD_SELECTOR;
+      process.env.MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR = entryMethodSelector;
+    }
+    try {
+      const feeWei = await readContractEntryFeeWei(ENTRY_CONTRACT_ADDRESS);
+      const feeMon = weiToMon(feeWei, 18);
+      if (Number.isFinite(feeMon) && feeMon > 0 && feeMon > entryFeeMon) {
+        console.log(
+          `[demo:setup] Entry contract requires entryFeeWei=${feeWei.toString()} (~${feeMon} MON). ` +
+            `Bumping MON_TEST_ENTRY_FEE_MON from ${entryFeeMon} to ${feeMon} to avoid reverts.`
+        );
+        entryFeeMon = feeMon;
+      }
+    } catch (e) {
+      console.log(
+        `[demo:setup] Warning: could not read entryFeeWei() from contract ${ENTRY_CONTRACT_ADDRESS}. ` +
+          `Continuing with MON_TEST_ENTRY_FEE_MON=${entryFeeMon}.`
+      );
+    }
+  }
   // If entry is via contract, agents need more balance to cover gas.
   const entryGasLimit = ENTRY_CONTRACT_ADDRESS ? Math.max(21000, ENTRY_CONTRACT_GAS_LIMIT) : GAS_LIMIT_VALUE_TX;
   const estimatedEntryGasMon = (entryGasLimit * baseGasPriceGwei) / 1e9;
-  const minAgentMonForEntry = Number((ENTRY_FEE_MON + estimatedEntryGasMon + 0.0002).toFixed(6));
+  const minAgentMonForEntry = Number((entryFeeMon + estimatedEntryGasMon + 0.0002).toFixed(6));
   const effectiveFundPerAgentMon = Math.max(FUND_PER_AGENT_MON, minAgentMonForEntry);
 
   // Start backend.
@@ -314,11 +358,11 @@ async function main() {
     MON_TEST_TREASURY_ADDRESS: wallets.treasury.address,
     MON_TEST_TREASURY_PRIVATE_KEY: wallets.treasury.privateKey,
     MON_TEST_WALLETS_JSON: WALLETS_JSON,
-    MON_TEST_ENTRY_FEE_MON: String(ENTRY_FEE_MON),
+    MON_TEST_ENTRY_FEE_MON: String(entryFeeMon),
     MON_TEST_MIN_CONFIRMATIONS: String(MIN_CONFIRMATIONS),
     MON_TEST_GAS_LIMIT: String(GAS_LIMIT_VALUE_TX),
     MON_TEST_GAS_PRICE_GWEI: String(baseGasPriceGwei),
-    WALLET_INITIAL_BALANCE_MON: process.env.WALLET_INITIAL_BALANCE_MON ?? String(Math.max(0, FUND_PER_AGENT_MON - ENTRY_FEE_MON)),
+    WALLET_INITIAL_BALANCE_MON: process.env.WALLET_INITIAL_BALANCE_MON ?? String(Math.max(0, FUND_PER_AGENT_MON - entryFeeMon)),
     MON_REWARD_PER_UNIT: process.env.MON_REWARD_PER_UNIT ?? "0.000001",
     MON_TRADE_PAYMENT_MON: process.env.MON_TRADE_PAYMENT_MON ?? "0.000001",
     MON_ATTACK_LOOT_MON: process.env.MON_ATTACK_LOOT_MON ?? "0.000001",
@@ -337,7 +381,7 @@ async function main() {
     ...(ENTRY_CONTRACT_ADDRESS
       ? {
           MON_TEST_ENTRY_CONTRACT_ADDRESS: ENTRY_CONTRACT_ADDRESS,
-          MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR: process.env.MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR ?? "",
+          MON_TEST_ENTRY_CONTRACT_METHOD_SELECTOR: entryMethodSelector,
         }
       : {})
   };
@@ -345,6 +389,8 @@ async function main() {
   fs.writeFileSync(DEMO_META_PATH, JSON.stringify({ mode: "mon-testnet", port: PORT, startedAt: new Date().toISOString() }, null, 2));
   console.log(`[demo:setup] Starting server in payment mode=mon-testnet on port ${PORT}`);
   console.log(`[demo:setup] RPC=${RPC_URL}`);
+  console.log(`[demo:setup] Entry target=${ENTRY_CONTRACT_ADDRESS || wallets.treasury.address}`);
+  console.log(`[demo:setup] Entry fee=${entryFeeMon} MON`);
   const outFd = fs.openSync(OUT_LOG, "a");
   const child = spawn("npm", ["run", "dev"], { cwd: process.cwd(), env, detached: true, stdio: ["ignore", outFd, outFd] });
   child.unref();
@@ -438,7 +484,7 @@ async function main() {
             nonce: agentNonce,
             gasLimit,
             gasPriceGwei,
-            valueMon: ENTRY_FEE_MON,
+            valueMon: entryFeeMon,
             privateKey: a.privateKey
           }),
         `entry fee ${a.id}`
